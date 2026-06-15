@@ -102,8 +102,10 @@ def meta():
         "illustrative": ww.ILLUSTRATIVE,
         "map_center": [30.7333, 76.7794], "map_zoom": 12,
         "stp_count": len(ww.STPS),
-        "markers": [{"id": m["id"], "name": m["name"], "color": m["color"]} for m in ww.MARKERS],
-        "unit": ww.UNIT, "thresholds": ww.THRESHOLDS, "ranges": list(RANGE_WEEKS.keys()),
+        "pillars": ww.PILLARS,
+        "markers": [{"id": m["id"], "name": m["name"], "color": m["color"],
+                     "pillar": m["pillar"], "unit": m["unit"]} for m in ww.MARKERS],
+        "unit": ww.VIRAL_UNIT, "thresholds": ww.VIRAL_THRESHOLDS, "ranges": list(RANGE_WEEKS.keys()),
         "signal_colors": SIGNAL_COLORS,
         "week_labels": ww.week_labels(),
         "masking": _masking_from_icmr(),
@@ -115,7 +117,7 @@ def meta():
 
 @app.get("/api/jd/stps")
 def stps():
-    return {"stps": ww.stp_list(), "thresholds": ww.THRESHOLDS}
+    return {"stps": ww.stp_list(), "thresholds": ww.VIRAL_THRESHOLDS}
 
 
 @app.get("/api/jd/stp/{stp_id}")
@@ -127,7 +129,7 @@ def stp(stp_id: str):
         **{k: s[k] for k in ("id", "name", "area", "lat", "lng", "population")},
         "signal": ww.stp_signal(stp_id),
         "markers": ww.stp_marker_summaries(stp_id),
-        "unit": ww.UNIT,
+        "unit": ww.VIRAL_UNIT,
     }
 
 
@@ -136,9 +138,10 @@ def series(stp_id: str, marker_id: str, range: str = "180"):
     vals = ww.series_for(stp_id, marker_id)
     labels = ww.week_labels()
     n = RANGE_WEEKS.get(range, 26)
-    m = next((x for x in ww.MARKERS if x["id"] == marker_id), {})
+    m = ww.marker(marker_id) or {}
     return {"stp": stp_id, "marker": marker_id, "name": m.get("name"), "color": m.get("color"),
-            "unit": ww.UNIT, "labels": labels[-n:], "values": vals[-n:]}
+            "pillar": m.get("pillar"), "illustrative": m.get("pillar") == "ncd",
+            "unit": m.get("unit", ww.VIRAL_UNIT), "labels": labels[-n:], "values": vals[-n:]}
 
 
 @app.get("/api/jd/predict/{stp_id}/{marker_id}")
@@ -146,20 +149,27 @@ def predict_series(stp_id: str, marker_id: str, range: str = "180", horizon: int
     vals = ww.series_for(stp_id, marker_id)
     labels = ww.week_labels()
     n = RANGE_WEEKS.get(range, 26)
-    m = next((x for x in ww.MARKERS if x["id"] == marker_id), {})
+    m = ww.marker(marker_id) or {}
     fc = predict.forecast(vals, labels, horizon=horizon)
     fc["history"] = {"labels": labels[-n:], "values": [round(float(v), 1) for v in vals[-n:]]}
     fc["name"] = m.get("name")
     fc["color"] = m.get("color")
-    fc["unit"] = ww.UNIT
+    fc["unit"] = m.get("unit", ww.VIRAL_UNIT)
+    fc["pillar"] = m.get("pillar")
+    if m.get("pillar") == "ncd":
+        fc["illustrative"] = True
+        fc["note"] = (fc.get("note", "") + " — illustrative NCD sample data (no mass-spec feed yet).").strip()
     return fc
 
 
 @app.get("/api/jd/chart-details/{stp_id}/{marker_id}")
 def chart_details(stp_id: str, marker_id: str):
     vals = ww.series_for(stp_id, marker_id)
-    m = next((x for x in ww.MARKERS if x["id"] == marker_id), {})
-    return {"text": predict.chart_details(m.get("name", marker_id), vals)}
+    m = ww.marker(marker_id) or {}
+    text = predict.chart_details(m.get("name", marker_id), vals)
+    if m.get("pillar") == "ncd":
+        text += " These NCD figures are illustrative sample data."
+    return {"text": text}
 
 
 @app.get("/api/jd/masking")

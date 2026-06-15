@@ -121,7 +121,7 @@ def chart_details(common: str, values: List[float]) -> str:
             higher_ago = back - 1
             break
     parts = [
-        f"{common} positivity has {direction} in the latest week "
+        f"{common} level has {direction} in the latest week "
         f"({prev:.0f} → {cur:.0f}).",
         f"It rose in {rises} of the last {len(recent) - 1} weeks.",
     ]

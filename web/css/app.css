@@ -76,6 +76,12 @@ h1,h2,h3{color:var(--ink);margin:0}
 .ranges{display:inline-flex;border:1px solid var(--line);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:10px}
 .ranges button{border:0;border-right:1px solid var(--line);background:var(--surface);padding:6px 12px;font:inherit;font-size:12px;font-weight:600;color:var(--ink-faint);cursor:pointer}
 .ranges button:last-child{border-right:0} .ranges button.active{background:var(--primary);color:#fff}
+/* pillar toggle */
+.pillars{display:flex;gap:6px;margin-bottom:10px}
+.pillars button{flex:1;border:1px solid var(--line);background:var(--surface);border-radius:var(--radius-sm);padding:8px 10px;font:inherit;font-size:12.5px;font-weight:600;color:var(--ink-soft);cursor:pointer}
+.pillars button.active{background:var(--primary);color:#fff;border-color:transparent}
+.pillars button[data-pillar="ncd"].active{background:#1B9C6B}
+.ncd-note{font-size:11.5px;color:#7a5a00;background:var(--watch-bg);border:1px solid #ecd9a3;border-radius:6px;padding:6px 10px;margin:0 0 10px}
 
 /* chart + slider */
 .chart{width:100%;height:230px}

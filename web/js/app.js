@@ -8,7 +8,7 @@
   const MASK_EMOJI = { not_required: "🙂", suggested: "😷", strongly_advised: "😷" };
   const api = (p) => fetch("/api/jd" + p).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); });
 
-  const state = { meta: null, stp: null, marker: null, range: "180", horizon: 8, predict: null, chart: null };
+  const state = { meta: null, stp: null, marker: null, pillar: "viral", range: "180", horizon: 8, predict: null, chart: null };
 
   async function init() {
     try {
@@ -73,10 +73,31 @@
       card.innerHTML = `
         <div class="stp__head"><h2>${esc(s.name)}</h2>
           <span class="pill pill--${s.signal}"><span class="dot"></span>${SLABEL[s.signal]}</span></div>
-        <div class="stp__sub">${esc(s.area)} · ~${Number(s.population).toLocaleString("en-IN")} people served · ${esc(s.unit)}</div>
+        <div class="stp__sub">${esc(s.area)} · ~${Number(s.population).toLocaleString("en-IN")} people served</div>
         <div id="mkList"></div>`;
-      const list = card.querySelector("#mkList");
-      s.markers.forEach((m) => {
+      $("#trendCard").hidden = false;
+      renderMarkerLists();
+      card.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (e) { card.innerHTML = "<p class='muted'>Couldn't load this STP.</p>"; }
+  }
+
+  /* (Re)build the marker list + chips for the current STP & pillar. */
+  function renderMarkerLists() {
+    const s = state.stp; if (!s) return;
+    $("#ncdNote").hidden = state.pillar !== "ncd";
+    const ms = s.markers.filter((m) => (m.pillar || "viral") === state.pillar);
+    const list = $("#mkList"), chips = $("#markerChips");
+    chips.innerHTML = "";
+    if (!ms.length) {
+      if (list) list.innerHTML = "<p class='muted'>No markers in this pillar yet.</p>";
+      state.marker = null; state.predict = null;
+      $("#trendTitle").textContent = "—"; $("#predNote").textContent = "";
+      if (state.chart) state.chart.clear();
+      return;
+    }
+    if (list) {
+      list.innerHTML = "";
+      ms.forEach((m) => {
         const row = document.createElement("div");
         row.className = "mk"; row.dataset.id = m.id;
         row.innerHTML = `<span class="dot" style="width:9px;height:9px;border-radius:50%;background:${COLORS[m.status]}"></span>
@@ -84,20 +105,19 @@
         row.addEventListener("click", () => selectMarker(m.id));
         list.appendChild(row);
       });
-      // marker chips in the trend card
-      const chips = $("#markerChips"); chips.innerHTML = "";
-      s.markers.forEach((m) => {
-        const b = document.createElement("button"); b.type = "button"; b.textContent = m.name; b.dataset.id = m.id;
-        b.addEventListener("click", () => selectMarker(m.id)); chips.appendChild(b);
-      });
-      $("#trendCard").hidden = false;
-      const worst = s.markers.slice().sort((a, b) => b.current - a.current)[0];
-      selectMarker((worst || s.markers[0]).id);
-      card.scrollIntoView({ behavior: "smooth", block: "start" });
-    } catch (e) { card.innerHTML = "<p class='muted'>Couldn't load this STP.</p>"; }
+    }
+    ms.forEach((m) => {
+      const b = document.createElement("button"); b.type = "button"; b.textContent = m.name; b.dataset.id = m.id;
+      b.addEventListener("click", () => selectMarker(m.id)); chips.appendChild(b);
+    });
+    // lead with the most concerning marker (worst status; units differ across NCD)
+    const sev = { alert: 2, watch: 1, baseline: 0 };
+    const pick = ms.slice().sort((a, b) => (sev[b.status] || 0) - (sev[a.status] || 0) || b.current - a.current)[0];
+    selectMarker(pick.id);
   }
 
   function selectMarker(id) {
+    if (!id) return;
     state.marker = id;
     $("#markerChips").querySelectorAll("button").forEach((b) => b.classList.toggle("active", b.dataset.id === id));
     $("#stpCard").querySelectorAll(".mk").forEach((r) => r.classList.toggle("active", r.dataset.id === id));
@@ -130,7 +150,7 @@
       grid: { left: 36, right: 12, top: 14, bottom: 24 },
       tooltip: { trigger: "axis", backgroundColor: "#0E1B2E", borderWidth: 0, textStyle: { color: "#fff", fontSize: 12 } },
       xAxis: { type: "category", data: x, boundaryGap: false, axisTick: { show: false }, axisLine: { lineStyle: { color: "#E5EBF1" } }, axisLabel: { color: "#6B7C92", fontSize: 10, hideOverlap: true } },
-      yAxis: { type: "value", max: 100, splitLine: { lineStyle: { color: "#EEF2F7" } }, axisLabel: { color: "#6B7C92", fontSize: 10 } },
+      yAxis: { type: "value", min: 0, scale: false, splitLine: { lineStyle: { color: "#EEF2F7" } }, axisLabel: { color: "#6B7C92", fontSize: 10 } },
       series: [
         { type: "line", data: lowBase, stack: "b", lineStyle: { opacity: 0 }, symbol: "none", silent: true, areaStyle: { color: "transparent" } },
         { type: "line", data: band, stack: "b", lineStyle: { opacity: 0 }, symbol: "none", silent: true, areaStyle: { color, opacity: 0.13 } },
@@ -150,6 +170,12 @@
         state.range = b.dataset.r;
         $("#rangeChips").querySelectorAll("button").forEach((x) => x.classList.toggle("active", x === b));
         renderTrend();
+      }));
+    $("#pillarTabs").querySelectorAll("button").forEach((b) =>
+      b.addEventListener("click", () => {
+        state.pillar = b.dataset.pillar;
+        $("#pillarTabs").querySelectorAll("button").forEach((x) => x.classList.toggle("active", x === b));
+        renderMarkerLists();
       }));
     $("#horizon").addEventListener("input", (e) => { state.horizon = +e.target.value; drawTrend(); });
     $("#detailsBtn").addEventListener("click", toggleDetails);
