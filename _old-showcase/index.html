@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JalDrishti · Chandigarh — Real-time, privacy-first health intelligence from wastewater</title>
+  <meta name="description" content="JalDrishti reads Chandigarh's wastewater to give 1–4 weeks of early warning on outbreaks and chronic-disease trends — anonymously, at population level, aligned with India's DPDP Act 2023." />
+  <meta name="theme-color" content="#0B2545" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="JalDrishti · Chandigarh — health intelligence from wastewater" />
+  <meta property="og:description" content="See outbreaks weeks before they reach the hospital — privacy-first, population-level wastewater surveillance for Chandigarh." />
+  <meta property="og:type" content="website" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="assets/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230E6BA8'/%3E%3Cpath d='M16 6c4 5 6 8 6 11a6 6 0 1 1-12 0c0-3 2-6 6-11z' fill='%237Fd0e0'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <a class="skip-link" href="#main" data-i18n="skip">Skip to content</a>
+
+  <!-- ============================ NAV ============================ -->
+  <header class="nav" id="nav">
+    <div class="container nav__inner">
+      <a class="brand" href="#top" aria-label="JalDrishti home">
+        <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true">
+          <rect width="32" height="32" rx="7" fill="#0E6BA8"/>
+          <path d="M16 6c4 5 6 8 6 11a6 6 0 1 1-12 0c0-3 2-6 6-11z" fill="#7Fd0e0"/>
+        </svg>
+        <span class="brand__name">JalDrishti <span class="brand__loc">· Chandigarh UT</span></span>
+      </a>
+
+      <nav class="nav__links" id="navLinks" aria-label="Primary">
+        <a href="#how" data-i18n="nav_how">How it works</a>
+        <a href="#monitor" data-i18n="nav_monitor">What we monitor</a>
+        <a href="#map" data-i18n="nav_map">Live map</a>
+        <a href="#privacy" data-i18n="nav_privacy">Privacy</a>
+        <a href="#proof" data-i18n="nav_proof">Proof</a>
+        <a class="btn btn--primary nav__cta" href="#contact" data-i18n="nav_cta">Request a pilot</a>
+      </nav>
+
+      <div class="nav__actions">
+        <div class="lang-toggle" role="group" aria-label="Language">
+          <button data-lang="en" class="active">EN</button>
+          <button data-lang="hi">हिं</button>
+        </div>
+        <a class="btn btn--primary nav__cta nav__cta--desktop" href="#contact" data-i18n="nav_cta">Request a pilot</a>
+        <button class="nav__burger" id="burger" aria-label="Menu" aria-expanded="false"><span></span></button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+  <span id="top"></span>
+
+  <!-- ============================ HERO ============================ -->
+  <section class="hero">
+    <div class="container hero__inner">
+      <div class="hero__copy">
+        <span class="hero__eyebrow" data-i18n="hero_eyebrow">JalDrishti · Chandigarh UT</span>
+        <h1 data-i18n="hero_h1">What is Chandigarh's water telling us?</h1>
+        <p class="hero__sub" data-i18n="hero_sub">One wastewater sample reads the city's viral threats and chronic-disease trends — anonymously, 1–4 weeks ahead of clinical cases.</p>
+        <div class="hero__cta">
+          <a class="btn btn--lg btn--onhero" href="#contact" data-i18n="hero_cta1">Request a pilot</a>
+          <a class="btn btn--lg btn--hero-ghost" href="#how" data-i18n="hero_cta2">See how it works</a>
+        </div>
+        <div class="hero__stats">
+          <div class="hero__stat"><span class="n" data-count="12.94" data-suffix=" L">0</span><span class="l" data-i18n="hero_s1">residents covered</span></div>
+          <div class="hero__stat"><span class="n" data-count="5">0</span><span class="l" data-i18n="hero_s2">STP sentinel sites</span></div>
+          <div class="hero__stat"><span class="n" data-i18n="hero_s3n">1–4 wks</span><span class="l" data-i18n="hero_s3">early warning</span></div>
+        </div>
+      </div>
+
+      <div class="hero__visual">
+        <div class="signalmap">
+          <div class="signalmap__title">
+            <span data-i18n="hero_map_title">Sector signal · live preview</span>
+            <span class="live"><i></i> <span data-i18n="hero_live">illustrative</span></span>
+          </div>
+          <svg id="heroMap" viewBox="0 0 320 250" role="img" aria-label="Illustrative city sector map. Each cell is a sector coloured green for baseline, amber for watch, or red for alert."></svg>
+          <div class="signalmap__legend">
+            <span><i style="background:var(--status-low)"></i> <span data-i18n="hero_lo">Baseline</span></span>
+            <span><i style="background:var(--status-watch)"></i> <span data-i18n="hero_wa">Watch</span></span>
+            <span><i style="background:var(--status-alert)"></i> <span data-i18n="hero_al">Alert</span></span>
+          </div>
+        </div>
+        <p class="hero__note" data-i18n="hero_note">Illustrative sector signals — for demonstration only.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ PROBLEM ============================ -->
+  <section class="section" id="why">
+    <div class="container">
+      <div class="section__head reveal">
+        <span class="eyebrow" data-i18n="why_eyebrow">Why now</span>
+        <h2 class="section__title" data-i18n="why_title">Today, we learn about an outbreak only after hospitals fill.</h2>
+        <p class="section__intro" data-i18n="why_intro">Clinical surveillance sees a person after they fall ill and seek care. By then a pathogen has already spread for weeks. Symptomatic-only testing and household surveys under-report what is really circulating in a community.</p>
+      </div>
+
+      <div class="contrast reveal">
+        <div class="contrast__card contrast__card--today">
+          <h3><span aria-hidden="true">⏱</span> <span data-i18n="why_today_h">Today</span></h3>
+          <p data-i18n="why_today_p">Signals arrive late — after cases reach clinics and hospitals. Response is reactive, and quiet spread goes unseen.</p>
+        </div>
+        <div class="contrast__card contrast__card--wbe">
+          <h3><span aria-hidden="true">📈</span> <span data-i18n="why_wbe_h">With wastewater</span></h3>
+          <p data-i18n="why_wbe_p">The whole community is read at once — including people who never get tested — giving 1–4 weeks of lead time to act.</p>
+        </div>
+      </div>
+
+      <div class="chips reveal">
+        <span class="chip" data-i18n="why_chip1"><b>Earlier:</b> signal precedes hospital load</span>
+        <span class="chip" data-i18n="why_chip2"><b>Complete:</b> includes untested & asymptomatic</span>
+        <span class="chip" data-i18n="why_chip3"><b>Cheaper:</b> 5 sites cover 12.94 lakh people</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ HOW IT WORKS ============================ -->
+  <section class="section section--mist" id="how">
+    <div class="container">
+      <div class="section__head reveal">
+        <span class="eyebrow" data-i18n="how_eyebrow">How it works</span>
+        <h2 class="section__title" data-i18n="how_title">Test the sewage, not the people.</h2>
+        <p class="section__intro" data-i18n="how_intro">Wastewater from every home flows to the city's treatment plants. We read it. Press play and watch one sample travel from the sewer to an early-warning alert.</p>
+      </div>
+
+      <!-- Animated, narrated demo of the pipeline -->
+      <div class="demo reveal" id="demo">
+        <div class="demo__stage">
+          <svg id="demoScene" viewBox="0 0 960 250" data-stage="0" role="img" aria-label="Animated demonstration: a wastewater sample is collected, analyzed in the lab, turned into a rising signal on a chart that crosses the alert line, then triggers an alert to health officials.">
+            <!-- conveyor track + animated flow -->
+            <line x1="143" y1="205" x2="818" y2="205" stroke="var(--line)" stroke-width="3"/>
+            <line class="dflow" x1="143" y1="205" x2="818" y2="205" stroke="var(--primary)" stroke-width="3" stroke-dasharray="2 12" stroke-linecap="round"/>
+            <g stroke="var(--line)" stroke-width="2">
+              <line x1="143" y1="164" x2="143" y2="190"/><line x1="368" y1="164" x2="368" y2="190"/>
+              <line x1="593" y1="164" x2="593" y2="190"/><line x1="818" y1="164" x2="818" y2="190"/>
+            </g>
+
+            <!-- Station 0 · Collect -->
+            <g class="dnode" id="dnode0">
+              <rect class="dcard" x="68" y="44" width="150" height="120" rx="16"/>
+              <g class="dicon" transform="translate(129,58) scale(1.2)" fill="none" stroke="var(--ink-soft)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v5.5L5.5 18a2 2 0 0 0 1.8 3h9.4a2 2 0 0 0 1.8-3L14 8.5V3"/><path d="M8 14h8"/></g>
+              <g class="dfx dfx0"><circle cx="134" cy="122" r="3" fill="var(--teal)"/><circle cx="143" cy="122" r="3" fill="var(--teal)"/><circle cx="152" cy="122" r="3" fill="var(--teal)"/></g>
+              <text class="dlabel" x="143" y="152" text-anchor="middle" data-i18n="how_s1_h">Collect</text>
+            </g>
+
+            <!-- Station 1 · Analyze -->
+            <g class="dnode" id="dnode1">
+              <rect class="dcard" x="293" y="44" width="150" height="120" rx="16"/>
+              <g class="dicon" transform="translate(354,58) scale(1.2)" fill="none" stroke="var(--ink-soft)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></g>
+              <g class="dfx dfx1"><rect x="351" y="106" width="6" height="28" rx="2" fill="var(--teal)"/><rect x="362" y="106" width="6" height="28" rx="2" fill="var(--teal)"/><rect x="373" y="106" width="6" height="28" rx="2" fill="var(--teal)"/><rect x="384" y="106" width="6" height="28" rx="2" fill="var(--teal)"/></g>
+              <text class="dlabel" x="368" y="152" text-anchor="middle" data-i18n="how_s2_h">Analyze</text>
+            </g>
+
+            <!-- Station 2 · Visualize -->
+            <g class="dnode" id="dnode2">
+              <rect class="dcard" x="518" y="44" width="150" height="120" rx="16"/>
+              <g class="dfx dfx2">
+                <line x1="533" y1="112" x2="653" y2="112" stroke="var(--status-alert)" stroke-width="1.4" stroke-dasharray="4 4" opacity=".6"/>
+                <polyline id="demoChartLine" fill="none" stroke="var(--primary)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" points=""/>
+                <circle class="dcross" cx="610" cy="112" r="5" fill="var(--status-alert)"/>
+              </g>
+              <text class="dlabel" x="593" y="152" text-anchor="middle" data-i18n="how_s3_h">Visualize</text>
+            </g>
+
+            <!-- Station 3 · Act -->
+            <g class="dnode" id="dnode3">
+              <rect class="dcard" x="743" y="44" width="150" height="120" rx="16"/>
+              <g transform="translate(804,58) scale(1.2)"><g class="dicon" fill="none" stroke="var(--ink-soft)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></g></g>
+              <g class="dfx dfx3"><circle class="dalert" cx="845" cy="70" r="8" fill="var(--status-alert)"/><text class="dalert" x="845" y="74" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">!</text></g>
+              <text class="dlabel" x="818" y="152" text-anchor="middle" data-i18n="how_s4_h">Act</text>
+            </g>
+
+            <!-- the travelling sample -->
+            <g id="demoToken">
+              <circle class="glow" cx="143" cy="205" r="26"/>
+              <circle class="disc" cx="143" cy="205" r="17"/>
+              <text id="demoGlyph" x="143" y="206" text-anchor="middle" dominant-baseline="central" font-size="18">💧</text>
+            </g>
+          </svg>
+        </div>
+        <p class="demo__caption" id="demoCaption" aria-live="polite"></p>
+        <div class="demo__controls">
+          <button class="demo__btn" id="demoToggle" type="button"></button>
+          <div class="demo__dots" id="demoDots" aria-hidden="true"></div>
+        </div>
+      </div>
+
+      <div class="reveal" style="text-align:center">
+        <span class="flow__tag"><b data-i18n="how_tag_b">What you get:</b> <span data-i18n="how_tag_p">outbreak early warning · NCD &amp; nutrition trends · sector hotspot maps</span></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ PILLARS ============================ -->
+  <section class="section" id="pillars">
+    <div class="container">
+      <div class="section__head reveal">
+        <span class="eyebrow" data-i18n="pillar_eyebrow">What we see</span>
+        <h2 class="section__title" data-i18n="pillar_title">Two signals from one sample.</h2>
+        <p class="section__intro" data-i18n="pillar_intro">The same wastewater carries both the city's infectious threats and the slow-moving trends behind chronic disease.</p>
+      </div>
+
+      <div class="pillars">
+        <article class="pillar pillar--viral reveal">
+          <span class="pillar__tag" data-i18n="pillar1_tag">Viral &amp; pathogen</span>
+          <h3 data-i18n="pillar1_h">Early warning for outbreaks</h3>
+          <p class="pillar__promise" data-i18n="pillar1_p">Catch waterborne and seasonal threats rising weeks before clinics do.</p>
+          <div class="pillar__chart"><svg id="pillarViralChart" class="multiline" viewBox="0 0 520 160" role="img" aria-label="Illustrative trend lines for Typhoid, Dengue and COVID signals."></svg></div>
+          <ul class="pillar__items">
+            <li><b>Typhoid</b> — <span data-i18n="pi_typhoid">waterborne; a spike flags contaminated supply</span></li>
+            <li><b>Hepatitis A</b> — <span data-i18n="pi_hepa">food &amp; water spread; sheds before symptoms</span></li>
+            <li><b>Dengue</b> — <span data-i18n="pi_dengue">post-monsoon surge; times vector control</span></li>
+            <li><b>COVID / Flu / RSV</b> — <span data-i18n="pi_resp">respiratory load, independent of testing</span></li>
+            <li class="more" data-i18n="pi_more">+ Cholera and more</li>
+          </ul>
+        </article>
+
+        <article class="pillar pillar--ncd reveal" data-delay="1">
+          <span class="pillar__tag" data-i18n="pillar2_tag">NCD &amp; lifestyle</span>
+          <h3 data-i18n="pillar2_h">Chronic-disease &amp; lifestyle trends</h3>
+          <p class="pillar__promise" data-i18n="pillar2_p">A population read on the habits behind India's biggest health burden.</p>
+          <div class="pillar__chart"><svg id="pillarNcdChart" class="multiline" viewBox="0 0 520 160" role="img" aria-label="Illustrative trend lines for alcohol, tobacco and cardio-metabolic markers."></svg></div>
+          <ul class="pillar__items">
+            <li><b>Alcohol</b> — <span data-i18n="ni_alcohol">community use trend for de-addiction policy</span></li>
+            <li><b>Tobacco</b> — <span data-i18n="ni_tobacco">nicotine marker targets cessation outreach</span></li>
+            <li><b>Diet quality</b> — <span data-i18n="ni_diet">nutrition read for school-meal &amp; policy</span></li>
+            <li><b>Diabetes &amp; cardio</b> — <span data-i18n="ni_pharma">drug-metabolite proxy for chronic load</span></li>
+            <li class="more" data-i18n="ni_more">+ more markers as needed</li>
+          </ul>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ MONITOR (explainer) ============================ -->
+  <section class="section section--mist" id="monitor">
+    <div class="container">
+      <div class="section__head reveal">
+        <span class="eyebrow" data-i18n="mon_eyebrow">What we monitor</span>
+        <h2 class="section__title" data-i18n="mon_title">Every marker, in plain language.</h2>
+        <p class="section__intro" data-i18n="mon_intro">A transparent list of what JalDrishti tracks for Chandigarh — what it is, how it spreads, and a 180-day illustrative trend.</p>
+      </div>
+      <div class="monitor-grid" id="monitorGrid"></div>
+    </div>
+  </section>
+
+  <!-- ============================ MAP ============================ -->
+  <section class="section" id="map">
+    <div class="container">
+      <div class="section__head reveal">
+        <span class="eyebrow" data-i18n="map_eyebrow">Live map</span>
+        <h2 class="section__title" data-i18n="map_title">Watch a signal move across the city.</h2>
+        <p class="section__intro" data-i18n="map_intro">Each cell is a sector, coloured by its wastewater signal. Press play to sweep 26 weeks and watch an illustrative typhoid cluster emerge, spread, and fade.</p>
+      </div>
+
+      <div class="mapwrap reveal">
+        <div class="mapcard">
+          <svg id="sectorGrid" class="sectorgrid" viewBox="0 0 640 480" role="img" aria-label="Illustrative grid of city sectors, each coloured green, amber or red by signal level, animating over 26 weeks."></svg>
+          <div class="mapctrl">
+            <button class="mapctrl__play" id="mapPlay" aria-label="Play timeline">
+              <svg id="playIcon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+            <input type="range" id="mapSlider" min="0" max="25" value="0" aria-label="Week" />
+            <span class="mapctrl__week" id="mapWeek">Week 1</span>
+          </div>
+        </div>
+
+        <aside class="maplegend">
+          <h3 data-i18n="map_legend_h">Signal level</h3>
+          <div class="key"><i class="fill-low" style="background:var(--status-low)"></i> <span data-i18n="map_low">Baseline · safe</span></div>
+          <div class="key"><i class="fill-watch" style="background:var(--status-watch)"></i> <span data-i18n="map_watch">Watch · rising</span></div>
+          <div class="key"><i class="fill-alert" style="background:var(--status-alert)"></i> <span data-i18n="map_alert">Alert · high</span></div>
+          <div class="maplegend__stat">
+            <div class="n" id="mapAlertCount">0</div>
+            <div class="l" data-i18n="map_alert_label">sectors at alert this week</div>
+          </div>
+          <p class="illus-note" data-i18n="map_illus">Illustrative sector signals for demonstration.</p>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ DASHBOARD PREVIEW ============================ -->
+  <section class="section section--mist" id="dashboard">
+    <div class="container">
+      <div class="dashwrap">
+        <div class="browser reveal">
+          <div class="browser__bar"><i></i><i></i><i></i><span class="browser__url">dashboard.jaldrishti.gov.in</span></div>
+          <svg viewBox="0 0 720 440" role="img" aria-label="Illustrative operational dashboard preview with sector map, alert list and trend chart." style="width:100%;height:auto;background:#fff">
+            <rect width="720" height="440" fill="#FBFDFF"/>
+            <!-- left rail -->
+            <rect x="0" y="0" width="170" height="440" fill="#0B2545"/>
+            <rect x="20" y="24" width="110" height="10" rx="5" fill="#3a5170"/>
+            <g>
+              <rect x="20" y="60" width="130" height="26" rx="6" fill="#13345a"/>
+              <rect x="20" y="94" width="130" height="26" rx="6" fill="#0E6BA8"/>
+              <rect x="20" y="128" width="130" height="26" rx="6" fill="#13345a"/>
+              <rect x="20" y="162" width="130" height="26" rx="6" fill="#13345a"/>
+            </g>
+            <!-- header -->
+            <rect x="190" y="22" width="180" height="14" rx="7" fill="#0B2545"/>
+            <rect x="600" y="18" width="100" height="22" rx="11" fill="#E7F5EC"/>
+            <text x="650" y="33" font-family="Inter,sans-serif" font-size="11" fill="#2E9E5B" text-anchor="middle" font-weight="700">System OK</text>
+            <!-- KPI cards -->
+            <g>
+              <rect x="190" y="58" width="160" height="78" rx="12" fill="#fff" stroke="#E2EAF1"/>
+              <text x="206" y="86" font-family="Inter" font-size="22" font-weight="700" fill="#0B2545">3</text>
+              <text x="206" y="110" font-family="Inter" font-size="11" fill="#5A6B82">Active alerts</text>
+              <rect x="362" y="58" width="160" height="78" rx="12" fill="#fff" stroke="#E2EAF1"/>
+              <text x="378" y="86" font-family="Inter" font-size="22" font-weight="700" fill="#0B2545">26</text>
+              <text x="378" y="110" font-family="Inter" font-size="11" fill="#5A6B82">Weeks of data</text>
+              <rect x="534" y="58" width="166" height="78" rx="12" fill="#fff" stroke="#E2EAF1"/>
+              <text x="550" y="86" font-family="Inter" font-size="22" font-weight="700" fill="#0B2545">10</text>
+              <text x="550" y="110" font-family="Inter" font-size="11" fill="#5A6B82">Markers tracked</text>
+            </g>
+            <!-- mini sector grid -->
+            <rect x="190" y="150" width="300" height="270" rx="12" fill="#fff" stroke="#E2EAF1"/>
+            <text x="206" y="176" font-family="Inter" font-size="12" font-weight="700" fill="#0B2545">Sector map</text>
+            <g id="dashCells"></g>
+            <!-- trend panel -->
+            <rect x="502" y="150" width="198" height="270" rx="12" fill="#fff" stroke="#E2EAF1"/>
+            <text x="518" y="176" font-family="Inter" font-size="12" font-weight="700" fill="#0B2545">Typhoid trend</text>
+            <polyline id="dashTrend" fill="none" stroke="#D7263D" stroke-width="2.5" points=""/>
+            <line x1="518" y1="250" x2="684" y2="250" stroke="#D7263D" stroke-dasharray="3 3" stroke-width="1" opacity="0.5"/>
+          </svg>
+        </div>
+
+        <div class="reveal" data-delay="1">
+          <span class="eyebrow" data-i18n="dash_eyebrow">The product</span>
+          <h2 class="section__title" data-i18n="dash_title">The showcase, made operational.</h2>
+          <ul class="dashfeat">
+            <li>
+              <span class="ic"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>
+              <div><h4 data-i18n="dash_f1_h">Sector-level view</h4><p data-i18n="dash_f1_p">Drill from the whole UT down to a single sector's signal.</p></div>
+            </li>
+            <li>
+              <span class="ic"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2 2 22h20L12 2z"/><path d="M12 9v5M12 18h.01"/></svg></span>
+              <div><h4 data-i18n="dash_f2_h">Active alerts</h4><p data-i18n="dash_f2_p">Threshold breaches surface automatically, ranked by urgency.</p></div>
+            </li>
+            <li>
+              <span class="ic"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 2 5-6"/></svg></span>
+              <div><h4 data-i18n="dash_f3_h">Trend over time</h4><p data-i18n="dash_f3_p">Every marker normalized against population and plotted weekly.</p></div>
+            </li>
+          </ul>
+          <a class="btn btn--ghost" href="https://jaldrishti-dashboard-production.up.railway.app" target="_blank" rel="noopener" data-i18n="dash_cta">Open the live dashboard ↗</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ PRIVACY ============================ -->
+  <section class="section" id="privacy">
+    <div class="container">
+      <div class="section__head reveal">
+        <span class="eyebrow" data-i18n="priv_eyebrow">Privacy by design</span>
+        <h2 class="privacy__lead" data-i18n="priv_lead">Population-level only. Fully anonymous. DPDP Act 2023-aligned.</h2>
+      </div>
+
+      <div class="privacy__grid">
+        <div class="trustpts reveal">
+          <div class="trustpt">
+            <span class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3z"/><path d="M9 12l2 2 4-4"/></svg></span>
+            <div><h4 data-i18n="priv_1_h">Pooled samples</h4><p data-i18n="priv_1_p">Wastewater mixes thousands of people. No individual can ever be identified or singled out.</p></div>
+          </div>
+          <div class="trustpt">
+            <span class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+            <div><h4 data-i18n="priv_2_h">Aggregation threshold</h4><p data-i18n="priv_2_p">Results are reported only as sector-level aggregates above a 10,000-population threshold.</p></div>
+          </div>
+          <div class="trustpt">
+            <span class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg></span>
+            <div><h4 data-i18n="priv_3_h">No personal data</h4><p data-i18n="priv_3_p">Nothing is collected from any person — no names, no consent burden, no individual tracking.</p></div>
+          </div>
+        </div>
+
+        <div class="reveal" data-delay="1">
+          <table class="govtable">
+            <caption data-i18n="gov_caption">Governance — who owns what</caption>
+            <tbody>
+              <tr><th data-i18n="gov_r1_k">Programme owner</th><td data-i18n="gov_r1_v">UT Health Department</td></tr>
+              <tr><th data-i18n="gov_r2_k">Laboratory &amp; analysis</th><td data-i18n="gov_r2_v">Designated reference lab (e.g. PGIMER)</td></tr>
+              <tr><th data-i18n="gov_r3_k">Sample collection</th><td data-i18n="gov_r3_v">Smart City / Municipal Corporation</td></tr>
+              <tr><th data-i18n="gov_r4_k">Environmental oversight</th><td data-i18n="gov_r4_v">Pollution Control Committee</td></tr>
+              <tr><th data-i18n="gov_r5_k">Data &amp; compliance</th><td data-i18n="gov_r5_v">DPDP Act 2023 framework</td></tr>
+            </tbody>
+          </table>
+          <p class="illus-note" style="margin-top:12px" data-i18n="gov_note">Illustrative governance structure — finalised with the partnering institutions.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ PROOF ============================ -->
+  <section class="section section--mist" id="proof">
+    <div class="container">
+      <div class="section__head reveal">
+        <span class="eyebrow" data-i18n="proof_eyebrow">Proven elsewhere</span>
+        <h2 class="section__title" data-i18n="proof_title">This isn't experimental — it runs at scale, worldwide.</h2>
+        <p class="section__intro" data-i18n="proof_intro">Wastewater-based epidemiology is an established public-health method. JalDrishti brings a proven global approach to Chandigarh. The programmes below are referenced as precedent, not as partners.</p>
+      </div>
+
+      <div class="precedent reveal">
+        <div class="precedent__card">
+          <span class="src">WastewaterSCAN</span>
+          <p data-i18n="prec_1">A US network monitoring wastewater across hundreds of sites with Stanford, Emory and Verily.</p>
+          <a href="https://www.wastewaterscan.org" target="_blank" rel="noopener" data-i18n="prec_learn">Learn more →</a>
+        </div>
+        <div class="precedent__card">
+          <span class="src">Biobot Analytics</span>
+          <p data-i18n="prec_2">Pioneered nationwide wastewater intelligence in the US, tracking COVID and more.</p>
+          <a href="https://biobot.io" target="_blank" rel="noopener" data-i18n="prec_learn">Learn more →</a>
+        </div>
+        <div class="precedent__card">
+          <span class="src" data-i18n="prec_3_s">European WBE networks</span>
+          <p data-i18n="prec_3">EU-wide wastewater surveillance is embedded in public-health policy across member states.</p>
+          <a href="https://www.who.int" target="_blank" rel="noopener" data-i18n="prec_learn">Learn more →</a>
+        </div>
+        <div class="precedent__card">
+          <span class="src" data-i18n="prec_4_s">COVID-era sewage surveillance</span>
+          <p data-i18n="prec_4">During the pandemic, dozens of countries used sewage to track community spread ahead of cases.</p>
+          <a href="https://www.who.int" target="_blank" rel="noopener" data-i18n="prec_learn">Learn more →</a>
+        </div>
+      </div>
+
+      <blockquote class="proofquote reveal">
+        <p data-i18n="proof_quote">“Wastewater can provide an early warning of disease trends in a community days to weeks before clinical case data.”</p>
+        <cite data-i18n="proof_cite">— Established finding across global public-health agencies</cite>
+      </blockquote>
+    </div>
+  </section>
+
+  <!-- ============================ IMPACT ============================ -->
+  <section class="section" id="impact">
+    <div class="container">
+      <div class="section__head reveal">
+        <span class="eyebrow" data-i18n="imp_eyebrow">Impact</span>
+        <h2 class="section__title" data-i18n="imp_title">What officials do with the signal.</h2>
+      </div>
+      <div class="usecases">
+        <div class="card card--interactive usecase reveal">
+          <span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2a7 7 0 0 0-4 12.7V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.3A7 7 0 0 0 12 2z"/><path d="M9 21h6"/></svg></span>
+          <h3 data-i18n="imp_1_h">Outbreak early-warning</h3>
+          <p data-i18n="imp_1_p">A rising typhoid or hepatitis signal in a sector triggers water-quality checks before cases climb.</p>
+        </div>
+        <div class="card card--interactive usecase reveal" data-delay="1">
+          <span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 3v18h18"/><path d="M7 13l3 3 7-8"/></svg></span>
+          <h3 data-i18n="imp_2_h">NCD &amp; nutrition policy</h3>
+          <p data-i18n="imp_2_p">Alcohol, tobacco and diet trends guide where to place screening camps and awareness drives.</p>
+        </div>
+        <div class="card card--interactive usecase reveal" data-delay="2">
+          <span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="7" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2 20c0-3.3 3-5 7-5s7 1.7 7 5M16 14c3 .4 5 2 5 6"/></svg></span>
+          <h3 data-i18n="imp_3_h">Mass-gathering safety</h3>
+          <p data-i18n="imp_3_p">During melas and large events, daily sampling watches for any rise in waterborne risk.</p>
+        </div>
+        <div class="card card--interactive usecase reveal" data-delay="3">
+          <span class="ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 21s-7-4.4-7-10a7 7 0 0 1 14 0c0 5.6-7 10-7 10z"/><circle cx="12" cy="11" r="2.5"/></svg></span>
+          <h3 data-i18n="imp_4_h">Resource targeting</h3>
+          <p data-i18n="imp_4_p">Limited staff, kits and vaccines go to the sectors that the data shows need them first.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ CTA ============================ -->
+  <section class="section cta" id="contact">
+    <div class="container cta__grid">
+      <div class="reveal">
+        <span class="eyebrow" style="color:#7Fd0e0" data-i18n="cta_eyebrow">Get started</span>
+        <h2 data-i18n="cta_h">Bring real-time health intelligence to Chandigarh.</h2>
+        <p data-i18n="cta_p">Start with a focused pilot across the city's 5 sentinel sites. We'll handle sampling, lab analysis and the dashboard — you get the early warning.</p>
+        <div class="cta__contact">
+          <span data-i18n="cta_contact_h"><b style="color:#fff">Request a pilot or a briefing:</b></span>
+          <span>✉ <a href="mailto:hello@jaldrishti.org">hello@jaldrishti.org</a></span>
+          <span data-i18n="cta_contact_loc">📍 Chandigarh UT, India</span>
+        </div>
+      </div>
+
+      <form class="form reveal" data-delay="1" id="pilotForm" novalidate>
+        <div class="row grid2">
+          <div class="field"><label for="f-name" data-i18n="form_name">Name</label><input id="f-name" name="name" type="text" required autocomplete="name" /></div>
+          <div class="field"><label for="f-org" data-i18n="form_org">Organisation</label><input id="f-org" name="org" type="text" required autocomplete="organization" /></div>
+        </div>
+        <div class="row" style="margin-top:16px">
+          <div class="field"><label for="f-email" data-i18n="form_email">Work email</label><input id="f-email" name="email" type="email" required autocomplete="email" /></div>
+        </div>
+        <div class="row" style="margin-top:16px">
+          <div class="field"><label for="f-msg" data-i18n="form_msg">How can we help?</label><textarea id="f-msg" name="message"></textarea></div>
+        </div>
+        <button class="btn btn--primary btn--lg" type="submit" style="margin-top:20px;width:100%;justify-content:center" data-i18n="form_submit">Request a pilot</button>
+        <p class="form__msg" id="formMsg" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+  </section>
+  </main>
+
+  <!-- ============================ FOOTER ============================ -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer__top">
+        <div class="footer__brand">
+          <div class="brand" style="margin-bottom:12px">
+            <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0E6BA8"/><path d="M16 6c4 5 6 8 6 11a6 6 0 1 1-12 0c0-3 2-6 6-11z" fill="#7Fd0e0"/></svg>
+            <span class="brand__name">JalDrishti</span>
+          </div>
+          <p data-i18n="foot_mission">Real-time, privacy-first health intelligence for Chandigarh — read from the city's wastewater.</p>
+        </div>
+        <div>
+          <h4 data-i18n="foot_explore">Explore</h4>
+          <ul>
+            <li><a href="#how" data-i18n="nav_how">How it works</a></li>
+            <li><a href="#monitor" data-i18n="nav_monitor">What we monitor</a></li>
+            <li><a href="#map" data-i18n="nav_map">Live map</a></li>
+            <li><a href="#privacy" data-i18n="nav_privacy">Privacy</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 data-i18n="foot_contact">Contact</h4>
+          <ul>
+            <li><a href="mailto:hello@jaldrishti.org">hello@jaldrishti.org</a></li>
+            <li><a href="#contact" data-i18n="nav_cta">Request a pilot</a></li>
+            <li><span data-i18n="cta_contact_loc">Chandigarh UT, India</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer__bottom">
+        <span>© <span id="year"></span> JalDrishti · <span data-i18n="foot_rights">A public-health initiative</span></span>
+        <span class="footer__disclaimer" data-i18n="foot_disclaimer">Illustrative data for demonstration — not certified clinical data.</span>
+      </div>
+    </div>
+  </footer>
+
+  <div class="tip" id="tip" role="status"></div>
+
+  <script src="assets/data.js"></script>
+  <script src="assets/i18n.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

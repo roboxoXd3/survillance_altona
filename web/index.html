@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JalDrishti — Wastewater Surveillance · Chandigarh</title>
+  <meta name="description" content="JalDrishti — STP-level wastewater surveillance for Chandigarh: per-site signals, past↔future prediction, and an ICMR-driven masking advisory." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="css/app.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230E6BA8'/%3E%3Cpath d='M16 6c4 5 6 8 6 11a6 6 0 1 1-12 0c0-3 2-6 6-11z' fill='%237Fd0e0'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./">
+      <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0E6BA8"/><path d="M16 6c4 5 6 8 6 11a6 6 0 1 1-12 0c0-3 2-6 6-11z" fill="#7Fd0e0"/></svg>
+      <span class="brand__name">JalDrishti<small>Wastewater surveillance · Chandigarh</small></span>
+    </a>
+    <div class="topbar__spacer"></div>
+    <div class="legend" aria-label="Signal legend">
+      <span><i style="background:#2E9E5B"></i> Baseline</span>
+      <span><i style="background:#E0A100"></i> Watch</span>
+      <span><i style="background:#D7263D"></i> Alert</span>
+    </div>
+    <div class="freshness" id="freshness">—</div>
+  </header>
+
+  <!-- National masking advisory (from ICMR) -->
+  <div class="maskbar" id="maskbar" role="status"></div>
+
+  <main class="layout">
+    <!-- LEFT: detail panel -->
+    <aside class="panel" id="panel" aria-live="polite">
+      <section class="panel__intro" id="panelIntro">
+        <h1>STP wastewater signal</h1>
+        <p class="muted" id="introNote">Each marker is a sewage treatment plant (STP) — a water-collection
+          point. Click an STP to see what its wastewater shows, the trend, and a past↔future forecast.</p>
+        <div class="datasrc" id="dataSrc"></div>
+      </section>
+
+      <!-- STP detail (filled on click) -->
+      <section class="card stp" id="stpCard" hidden></section>
+
+      <!-- Marker trend + forecast -->
+      <section class="card trend" id="trendCard" hidden>
+        <div class="card__head">
+          <div><h2 id="trendTitle">Marker trend</h2>
+            <span class="muted small" id="trendSrc"></span></div>
+          <button class="btn btn--ghost" id="detailsBtn" type="button">View Chart Details</button>
+        </div>
+        <div class="markers" id="markerChips" role="tablist" aria-label="Marker"></div>
+        <div class="ranges" id="rangeChips" role="group" aria-label="Time range">
+          <button data-r="30" type="button">30 days</button>
+          <button data-r="60" type="button">60 days</button>
+          <button data-r="180" class="active" type="button">180 days</button>
+        </div>
+        <div id="trendChart" class="chart"></div>
+        <div class="slider">
+          <span class="slider__end">◀ PAST</span>
+          <input type="range" id="horizon" min="0" max="12" value="8" aria-label="Prediction horizon (weeks into the future)" />
+          <span class="slider__end">FUTURE ▶</span>
+        </div>
+        <p class="predicted-note" id="predNote"></p>
+        <div class="details-text" id="detailsText" hidden></div>
+        <button class="btn btn--block" id="csvBtn" type="button">⬇ Download data (CSV)</button>
+      </section>
+    </aside>
+
+    <!-- RIGHT: the map -->
+    <section class="mapwrap">
+      <div id="map" class="map"></div>
+      <div class="map__foot">
+        <span class="masknote">Markers = STP water-collection points · click to drill in</span>
+        <span class="illus" id="mapAsOf"></span>
+      </div>
+    </section>
+  </main>
+
+  <div class="loading" id="loading">Loading surveillance data…</div>
+
+  <script src="assets/leaflet/leaflet.js"></script>
+  <script src="assets/echarts.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

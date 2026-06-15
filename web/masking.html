@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JalDrishti — How the masking advisory is calculated</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230E6BA8'/%3E%3Cpath d='M16 6c4 5 6 8 6 11a6 6 0 1 1-12 0c0-3 2-6 6-11z' fill='%237Fd0e0'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./">
+      <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0E6BA8"/><path d="M16 6c4 5 6 8 6 11a6 6 0 1 1-12 0c0-3 2-6 6-11z" fill="#7Fd0e0"/></svg>
+      <span class="brand__name">JalDrishti<small>How the masking advisory works</small></span>
+    </a>
+    <div class="topbar__spacer"></div>
+    <a class="btn" href="./">← Back to map</a>
+  </header>
+
+  <main class="explain">
+    <section class="ex-intro">
+      <h1>How the masking “safety value” is calculated</h1>
+      <p class="muted">The masking advisory does <b>not</b> come from the wastewater sample data. It is
+        computed from <b>real ICMR</b> lab-confirmed respiratory-virus positivity (national), comparing
+        the current week against its own recent baseline. Below is the live data and the exact formula —
+        nothing hidden.</p>
+    </section>
+
+    <!-- live result -->
+    <section class="card result" id="result"><p class="muted">Loading ICMR data…</p></section>
+
+    <!-- formula -->
+    <section class="card">
+      <h2>The formula</h2>
+      <ol class="steps">
+        <li><b>Take ICMR positivity</b> — weekly lab-confirmed counts for each respiratory pathogen (H1N1, H3N2, Influenza B, SARS-CoV-2, …).</li>
+        <li><b>Sum per week</b> → a single “respiratory positivity” total for each week.</li>
+        <li><b>Current (X)</b> = the latest week’s total. <b>Baseline (Y)</b> = the median of the previous 12 weeks.</li>
+        <li><b>Ratio = X ÷ Y.</b> Map it to a level:
+          <span class="thr"><i class="thr--low"></i> &lt; 1.1 → not required</span>
+          <span class="thr"><i class="thr--watch"></i> 1.1–1.5 → suggested</span>
+          <span class="thr"><i class="thr--alert"></i> ≥ 1.5 → strongly advised</span>
+        </li>
+      </ol>
+      <p class="muted small">Using a ratio (current vs the area’s own recent baseline) is robust to scale —
+        it flags a real <i>rise</i> in respiratory activity rather than an absolute number. Thresholds are a
+        config and can be tuned with public-health input.</p>
+    </section>
+
+    <!-- chart -->
+    <section class="card">
+      <div class="card__head"><div><h2>Weekly respiratory positivity (ICMR)</h2>
+        <span class="muted small" id="chartSrc"></span></div></div>
+      <div id="calcChart" class="chart" style="height:280px"></div>
+      <p class="muted small">Solid line = weekly total across all pathogens. Dashed line = the 12-week
+        baseline (median). The last point is the current week (X).</p>
+    </section>
+
+    <!-- per-pathogen table -->
+    <section class="card">
+      <div class="card__head"><div><h2>ICMR data — by pathogen</h2>
+        <span class="muted small" id="tableSrc"></span></div></div>
+      <div class="table-wrap"><table class="dtable" id="pathTable"></table></div>
+    </section>
+
+    <p class="foot-note">Source: ICMR Influenza surveillance (national, lab-confirmed positivity).
+      Masking is <b>advisory only</b> — a suggested preventive measure, not enforcement.</p>
+  </main>
+
+  <div class="loading" id="loading">Loading…</div>
+  <script src="assets/echarts.min.js"></script>
+  <script src="js/masking.js"></script>
+</body>
+</html>
