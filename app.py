@@ -38,6 +38,44 @@ MASKING_NOTE = "Advisory only — a suggested preventive measure, not enforcemen
 # ICMR combined-positivity ratio (current vs recent baseline) → masking level
 MASK_RATIO = {"strongly_advised": 1.5, "suggested": 1.1}
 
+# 4-level traffic light (Tarun's framework) — used for the national bar + per-STP circles
+MASK_LEVELS = {
+    "green":  {"color": "#2E9E5B", "label": "Routine — masking optional"},
+    "yellow": {"color": "#E0A100", "label": "Targeted masking"},
+    "orange": {"color": "#F97316", "label": "Broad masking advised"},
+    "red":    {"color": "#D7263D", "label": "Masking strongly advised"},
+}
+# domains not yet wired into the composite (shown as "pending feed")
+PENDING_FEEDS = ["Hospital PCR (e.g. PGI Chandigarh)", "Clinical ILI/SARI", "Public-health alerts", "Operational pressure"]
+
+# Preventive actions by masking colour (viral, adapted from the masking-policy framework)
+# and illustrative NCD outreach. Advisory only.
+PREVENTIVE = {
+    "viral": {
+        "green":  ["Masking optional in general areas", "Symptomatic individuals mask (source control)", "Promote hand hygiene & respiratory etiquette"],
+        "yellow": ["Targeted masking in crowded / poorly-ventilated indoor settings", "Masks for staff in patient-facing roles", "Symptomatic individuals must mask; encourage testing"],
+        "orange": ["Masking advised in all indoor public spaces", "Vulnerable groups avoid crowded settings", "Improve ventilation; widen testing in affected areas"],
+        "red":    ["Masking strongly advised in all indoor settings", "N95/FFP2 for high-risk settings & aerosol-generating procedures", "Limit large indoor gatherings; isolate symptomatic cases"],
+    },
+    "ncd": [
+        "Community awareness drives where alcohol/tobacco load is rising",
+        "Target screening camps (diabetes/cardio) to high-load catchments",
+        "Nutrition & diet outreach via local health workers",
+        "Coordinate with the State NCD cell on lifestyle programmes",
+    ],
+    "note": "Advisory only — suggested preventive measures, not enforcement. NCD actions are illustrative.",
+}
+
+
+def _traffic_from_ratio(ratio: float) -> str:
+    if ratio >= 2.1:
+        return "red"
+    if ratio >= 1.5:
+        return "orange"
+    if ratio >= 1.1:
+        return "yellow"
+    return "green"
+
 
 @lru_cache(maxsize=2)
 def _icmr() -> Dict[str, Any]:
@@ -85,14 +123,38 @@ def _masking_from_icmr() -> Dict[str, Any]:
         "current_total": round(current, 1), "baseline": round(baseline, 1), "ratio": round(ratio, 2),
         "baseline_window_weeks": len(window),
         "thresholds": MASK_RATIO,
+        "traffic": {"level": _traffic_from_ratio(ratio), **MASK_LEVELS[_traffic_from_ratio(ratio)]},
         "drivers": [{"name": p["name"], "value": p["latest"], "color": p["color"]} for p in drivers],
         "rationale": f"Current respiratory positivity is {round(ratio, 2)}× the recent {len(window)}-week "
                      f"baseline (driven by {', '.join(p['name'] for p in drivers[:2])}).",
     }
 
 
+# ── Per-STP masking (simplified composite from data we have) ──────────────────
+def _stp_masking(stp_id: str) -> Dict[str, Any]:
+    """Per-STP traffic-light masking: blends this STP's wastewater signal with the
+    national ICMR positivity. Other composite domains (hospital PCR, clinical, …)
+    are PENDING feeds. Phase 2 wires the full weighted composite."""
+    nat = _masking_from_icmr()
+    ratio = nat.get("ratio", 0) or 0
+    sig = ww.stp_signal(stp_id)  # baseline | watch | alert
+    vscore = {"baseline": 0.3, "watch": 1.6, "alert": 2.6}.get(sig, 0.3)   # 0–3
+    nscore = 0.5 if ratio < 1.1 else 1.5 if ratio < 1.5 else 2.5            # 0–3
+    score = round(0.65 * vscore + 0.35 * nscore, 2)
+    level = "green" if score < 0.9 else "yellow" if score < 1.7 else "orange" if score < 2.3 else "red"
+    return {
+        "level": level, **MASK_LEVELS[level], "score": score,
+        "drivers": [
+            {"label": "STP wastewater signal", "value": sig},
+            {"label": "ICMR national positivity", "value": f"{ratio}× baseline"},
+        ],
+        "pending": PENDING_FEEDS,
+        "note": "Simplified composite (wastewater + ICMR). Hospital/clinical feeds pending.",
+    }
+
+
 # ── App ───────────────────────────────────────────────────────────────────────
-app = FastAPI(title="JalDrishti", version="2.0.0")
+app = FastAPI(title="JalDrishti", version="3.0.0")
 
 
 @app.get("/api/jd/meta")
@@ -117,7 +179,10 @@ def meta():
 
 @app.get("/api/jd/stps")
 def stps():
-    return {"stps": ww.stp_list(), "thresholds": ww.VIRAL_THRESHOLDS}
+    rows = ww.stp_list()
+    for r in rows:
+        r["masking"] = _stp_masking(r["id"])
+    return {"stps": rows, "thresholds": ww.VIRAL_THRESHOLDS, "mask_levels": MASK_LEVELS}
 
 
 @app.get("/api/jd/stp/{stp_id}")
@@ -128,6 +193,9 @@ def stp(stp_id: str):
     return {
         **{k: s[k] for k in ("id", "name", "area", "lat", "lng", "population")},
         "signal": ww.stp_signal(stp_id),
+        "masking": _stp_masking(stp_id),
+        "catchment_km": ww.catchment_km(s["population"]),
+        "population_estimated": True,
         "markers": ww.stp_marker_summaries(stp_id),
         "unit": ww.VIRAL_UNIT,
     }
@@ -175,6 +243,11 @@ def chart_details(stp_id: str, marker_id: str):
 @app.get("/api/jd/masking")
 def masking():
     return _masking_from_icmr()
+
+
+@app.get("/api/jd/preventive")
+def preventive():
+    return PREVENTIVE
 
 
 @app.get("/api/jd/icmr")

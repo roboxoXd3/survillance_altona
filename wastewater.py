@@ -65,6 +65,12 @@ def marker(mid: str) -> Optional[Dict[str, Any]]:
     return next((m for m in MARKERS if m["id"] == mid), None)
 
 
+def catchment_km(population: int) -> float:
+    """Approximate catchment RADIUS (km) sized by population. Estimated — not a
+    real sewershed boundary (labelled 'estimated' in the UI)."""
+    return round(0.8 + math.sqrt(max(population, 1) / 40000), 1)
+
+
 def _seed(*parts) -> int:
     s = 0
     for p in parts:
@@ -185,5 +191,6 @@ def stp_list() -> List[Dict[str, Any]]:
         top = max(viral, key=lambda x: x["current"]) if viral else {"name": "—", "current": 0}
         out.append({**{k: s[k] for k in ("id", "name", "area", "lat", "lng", "population")},
                     "signal": stp_signal(s["id"]),
+                    "catchment_km": catchment_km(s["population"]), "population_estimated": True,
                     "top_marker": top["name"], "top_value": top["current"]})
     return out

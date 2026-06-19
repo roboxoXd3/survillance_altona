@@ -1,143 +1,175 @@
-/* JalDrishti — STP wastewater map (Leaflet) + marker forecast (ECharts).
-   Reads /api/jd/*. Wastewater = illustrative sample; masking = real ICMR. */
+/* JalDrishti — wwscan-style two-view app (Map + Charts), Leaflet + ECharts.
+   Map = STP catchment circles coloured by masking. Charts = per-marker forecasts.
+   Wastewater = illustrative sample; masking = real ICMR. */
 (function () {
   "use strict";
   const $ = (s) => document.querySelector(s);
-  const COLORS = { baseline: "#2E9E5B", watch: "#E0A100", alert: "#D7263D", none: "#C7D0DA" };
-  const SLABEL = { baseline: "Baseline", watch: "Watch", alert: "Alert", none: "No data" };
-  const MASK_EMOJI = { not_required: "🙂", suggested: "😷", strongly_advised: "😷" };
+  const SLABEL = { baseline: "Low", watch: "Watch", alert: "High", none: "—" };
+  const SCOL = { baseline: "#2E9E5B", watch: "#E0A100", alert: "#D7263D", none: "#C7D0DA" };
+  const MASK_EMOJI = { green: "🙂", yellow: "😷", orange: "😷", red: "😷" };
   const api = (p) => fetch("/api/jd" + p).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); });
 
-  const state = { meta: null, stp: null, marker: null, pillar: "viral", range: "180", horizon: 8, predict: null, chart: null };
+  const state = {
+    meta: null, stps: [], stp: null, pillar: "viral", range: "180", horizon: 8,
+    view: "map", map: null, layers: {}, preventive: null, charts: {}, chartEls: [],
+  };
 
   async function init() {
     try {
-      const [meta, stpData] = await Promise.all([api("/meta"), api("/stps")]);
-      state.meta = meta;
-      renderMaskbar(meta.masking);
-      renderFreshness(meta);
-      renderMap(stpData.stps, meta);
+      const [meta, stpData, preventive] = await Promise.all([api("/meta"), api("/stps"), api("/preventive")]);
+      state.meta = meta; state.stps = stpData.stps; state.preventive = preventive;
+      $("#freshness").textContent = "ICMR: " + (meta.masking.source_week || "—");
+      renderMaskCard(meta.masking);
+      renderMap();
       wireControls();
+      // default: highest-signal STP
+      const order = { alert: 3, watch: 2, baseline: 1, none: 0 };
+      const def = state.stps.slice().sort((a, b) => (order[b.signal] || 0) - (order[a.signal] || 0) || b.top_value - a.top_value)[0];
+      await selectStp(def.id, false);
       $("#loading").classList.add("hide");
-    } catch (e) {
-      $("#loading").textContent = "Could not load data (" + e + ")"; console.error(e);
-    }
+    } catch (e) { $("#loading").textContent = "Could not load data (" + e + ")"; console.error(e); }
   }
 
-  function renderFreshness(meta) {
-    $("#freshness").textContent = "ICMR: " + (meta.masking.source_week || "—");
-    $("#mapAsOf").textContent = "Illustrative WastewaterSCAN-style sample data · masking from ICMR";
-    $("#dataSrc").innerHTML =
-      "<b>Map / wastewater:</b> illustrative sample (WastewaterSCAN-style) on " + meta.stp_count +
-      " Chandigarh STPs.<br/><b>Masking:</b> real ICMR influenza positivity (national).";
+  /* ---- national masking card ---- */
+  function renderMaskCard(m) {
+    const t = m.traffic || { level: "green", label: m.label };
+    $("#maskcard").className = "maskcard maskcard--" + t.level;
+    $("#maskcard").innerHTML =
+      `<div class="maskcard__top"><span class="ic">${MASK_EMOJI[t.level] || "🙂"}</span> National masking: ${t.label}</div>
+       <p class="maskcard__why">${esc(m.rationale || m.note || "")}</p>
+       <a class="maskcard__more" href="masking.html">How is this calculated? →</a>`;
   }
 
-  function renderMaskbar(m) {
-    const bar = $("#maskbar");
-    bar.className = "maskbar maskbar--" + (m.level || "not_required");
-    bar.innerHTML = `<span class="ic">${MASK_EMOJI[m.level] || "🙂"}</span>
-      <b>Masking advisory: ${m.label || "—"}.</b>
-      <span>${m.rationale || m.note || ""}</span>
-      <a class="maskbar__more" href="masking.html">How is this calculated? →</a>
-      <span class="src">Source: ${m.source || "ICMR"}${m.source_week ? " · wk " + m.source_week : ""}</span>`;
-  }
-
-  /* ------------------------------------------------------------- map ------ */
-  function renderMap(stps, meta) {
-    const map = L.map("map", { zoomControl: true, scrollWheelZoom: true })
-      .setView(meta.map_center, meta.map_zoom);
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-      attribution: "© OpenStreetMap, © CARTO", subdomains: "abcd", maxZoom: 19,
-    }).addTo(map);
-
-    stps.forEach((s) => {
-      const r = 11 + Math.round((s.top_value || 0) / 12);
-      const mk = L.circleMarker([s.lat, s.lng], {
-        radius: r, color: "#fff", weight: 2, fillColor: COLORS[s.signal] || COLORS.none, fillOpacity: 0.9,
-      }).addTo(map);
-      mk.bindTooltip(`<b>${s.name}</b> · ${SLABEL[s.signal]}<br/>top: ${s.top_marker} (${s.top_value})`, { direction: "top" });
-      mk.bindTooltip(s.name, { permanent: true, direction: "right", className: "stp-label", offset: [8, 0] });
-      mk.on("click", () => openStp(s.id));
-    });
-    setTimeout(() => map.invalidateSize(), 200);
+  /* ---- map (animated STP catchment circles) ---- */
+  function renderMap() {
+    const map = L.map("map", { zoomControl: true, scrollWheelZoom: true }).setView(state.meta.map_center, state.meta.map_zoom);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { attribution: "© OpenStreetMap, © CARTO", subdomains: "abcd", maxZoom: 19 }).addTo(map);
     state.map = map;
+    state.stps.forEach((s, i) => {
+      const col = (s.masking && s.masking.color) || SCOL[s.signal];
+      const lvl = (s.masking && s.masking.level) || "green";
+      // staggered appearance for a subtle animation
+      setTimeout(() => {
+        const circle = L.circle([s.lat, s.lng], { radius: (s.catchment_km || 2) * 1000, color: col, weight: 1.5, fillColor: col, fillOpacity: 0.16 }).addTo(map);
+        const pulseCls = (lvl === "orange" || lvl === "red") ? " stp-pulse stp-pulse--" + lvl : "";
+        const dot = L.marker([s.lat, s.lng], {
+          icon: L.divIcon({ className: "", html: `<div class="stp-dot${pulseCls}" style="width:16px;height:16px;background:${col};color:${col}"></div>`, iconSize: [16, 16], iconAnchor: [8, 8] }),
+        }).addTo(map);
+        const tip = `<b>${esc(s.name)}</b> · ${(s.masking ? s.masking.label : SLABEL[s.signal])}<br/>~${Number(s.population).toLocaleString("en-IN")} people (est.) · ${s.catchment_km} km catchment`;
+        circle.bindTooltip(tip, { direction: "top" }); dot.bindTooltip(tip, { direction: "top" });
+        circle.on("click", () => selectStp(s.id)); dot.on("click", () => selectStp(s.id));
+        state.layers[s.id] = { circle, dot };
+      }, i * 110);
+    });
+    // fit to all STPs
+    setTimeout(() => { const b = L.latLngBounds(state.stps.map((s) => [s.lat, s.lng])); map.fitBounds(b.pad(0.5)); map.invalidateSize(); }, state.stps.length * 110 + 150);
   }
 
-  /* ------------------------------------------------------- STP detail ---- */
-  async function openStp(id) {
-    const card = $("#stpCard"); card.hidden = false;
-    card.innerHTML = "<p class='muted'>Loading…</p>";
-    try {
-      const s = await api("/stp/" + id);
-      state.stp = s;
-      card.innerHTML = `
-        <div class="stp__head"><h2>${esc(s.name)}</h2>
-          <span class="pill pill--${s.signal}"><span class="dot"></span>${SLABEL[s.signal]}</span></div>
-        <div class="stp__sub">${esc(s.area)} · ~${Number(s.population).toLocaleString("en-IN")} people served</div>
-        <div id="mkList"></div>`;
-      $("#trendCard").hidden = false;
-      renderMarkerLists();
-      card.scrollIntoView({ behavior: "smooth", block: "start" });
-    } catch (e) { card.innerHTML = "<p class='muted'>Couldn't load this STP.</p>"; }
+  function fitAll() { if (state.map) state.map.flyToBounds(L.latLngBounds(state.stps.map((s) => [s.lat, s.lng])).pad(0.5)); }
+
+  /* ---- select an STP ---- */
+  async function selectStp(id, fly = true) {
+    const meta = state.stps.find((x) => x.id === id);
+    if (fly && state.map && meta) state.map.flyTo([meta.lat, meta.lng], 13, { duration: 0.6 });
+    const s = await api("/stp/" + id);
+    state.stp = s;
+    $("#ovTitle").textContent = s.name;
+    $("#backAll").hidden = false;
+    renderStpInfo(s);
+    renderMarkerCards();
+    renderPrevent();
+    if (state.view === "charts") renderCharts();
   }
 
-  /* (Re)build the marker list + chips for the current STP & pillar. */
-  function renderMarkerLists() {
+  function renderStpInfo(s) {
+    const m = s.masking || {};
+    const box = $("#stpInfo"); box.hidden = false;
+    box.innerHTML = `
+      <h3>${esc(s.name)} <span class="pill pill--${level2sig(m.level)}"><span class="dot"></span>${esc(m.label || "—")}</span></h3>
+      <div class="grid">
+        <div><div class="l">Population</div><div class="v">${Number(s.population).toLocaleString("en-IN")} <span class="est">(est.)</span></div></div>
+        <div><div class="l">Catchment</div><div class="v">~${s.catchment_km} km <span class="est">(est.)</span></div></div>
+        <div><div class="l">Latitude</div><div class="v">${s.lat.toFixed(4)}</div></div>
+        <div><div class="l">Longitude</div><div class="v">${s.lng.toFixed(4)}</div></div>
+      </div>
+      <div class="pending"><b>Masking inputs:</b> ${(m.drivers || []).map((d) => esc(d.label) + " (" + esc(d.value) + ")").join(" · ")}.
+        <br/><b>Pending feeds:</b> ${(m.pending || []).join(", ")}.</div>`;
+  }
+
+  /* ---- marker cards (wwscan-style) ---- */
+  function renderMarkerCards() {
     const s = state.stp; if (!s) return;
     $("#ncdNote").hidden = state.pillar !== "ncd";
     const ms = s.markers.filter((m) => (m.pillar || "viral") === state.pillar);
-    const list = $("#mkList"), chips = $("#markerChips");
-    chips.innerHTML = "";
-    if (!ms.length) {
-      if (list) list.innerHTML = "<p class='muted'>No markers in this pillar yet.</p>";
-      state.marker = null; state.predict = null;
-      $("#trendTitle").textContent = "—"; $("#predNote").textContent = "";
-      if (state.chart) state.chart.clear();
-      return;
-    }
-    if (list) {
-      list.innerHTML = "";
-      ms.forEach((m) => {
-        const row = document.createElement("div");
-        row.className = "mk"; row.dataset.id = m.id;
-        row.innerHTML = `<span class="dot" style="width:9px;height:9px;border-radius:50%;background:${COLORS[m.status]}"></span>
-          <span class="mk__name">${esc(m.name)}</span>${spark(m.spark, m.color)}<span class="mk__val">${m.current}</span>`;
-        row.addEventListener("click", () => selectMarker(m.id));
-        list.appendChild(row);
-      });
-    }
+    const wrap = $("#markerCards"); wrap.innerHTML = "";
     ms.forEach((m) => {
-      const b = document.createElement("button"); b.type = "button"; b.textContent = m.name; b.dataset.id = m.id;
-      b.addEventListener("click", () => selectMarker(m.id)); chips.appendChild(b);
+      const c = document.createElement("div");
+      c.className = "mkcard"; c.dataset.id = m.id;
+      c.innerHTML = `
+        <div class="mkcard__top"><span class="mkcard__name">${esc(m.name)}</span>
+          <span class="pill pill--${m.status}"><span class="dot"></span>${SLABEL[m.status]}</span></div>
+        <div class="mkcard__row"><span class="mkcard__val">${m.current} <small>${esc(m.unit)}</small></span>${spark(m.spark, m.color)}</div>`;
+      c.addEventListener("click", () => { showView("charts"); setTimeout(() => { const el = document.getElementById("ch-" + m.id); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }); }, 60); });
+      wrap.appendChild(c);
     });
-    // lead with the most concerning marker (worst status; units differ across NCD)
-    const sev = { alert: 2, watch: 1, baseline: 0 };
-    const pick = ms.slice().sort((a, b) => (sev[b.status] || 0) - (sev[a.status] || 0) || b.current - a.current)[0];
-    selectMarker(pick.id);
   }
 
-  function selectMarker(id) {
-    if (!id) return;
-    state.marker = id;
-    $("#markerChips").querySelectorAll("button").forEach((b) => b.classList.toggle("active", b.dataset.id === id));
-    $("#stpCard").querySelectorAll(".mk").forEach((r) => r.classList.toggle("active", r.dataset.id === id));
-    renderTrend();
+  /* ---- preventive actions ---- */
+  function renderPrevent() {
+    const pv = state.preventive; if (!pv || !state.stp) return;
+    const lvl = (state.stp.masking && state.stp.masking.level) || "green";
+    const viral = pv.viral[lvl] || pv.viral.green;
+    $("#prevent").innerHTML = `
+      <h3>🦠 Preventive actions — Viral <span class="pill pill--${level2sig(lvl)}" style="margin-left:auto"><span class="dot"></span>${lvl}</span></h3>
+      <ul>${viral.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
+      <h3>🧪 Preventive actions — NCD &amp; Lifestyle</h3>
+      <ul>${pv.ncd.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
+      <p class="note">${esc(pv.note)}</p>`;
   }
 
-  /* ----------------------------------------------------------- trend ----- */
-  async function renderTrend() {
-    if (!state.stp || !state.marker) return;
-    state.predict = await api(`/predict/${state.stp.id}/${state.marker}?range=${state.range}&horizon=12`);
-    $("#trendTitle").textContent = state.predict.name + " · " + state.stp.name;
-    $("#trendSrc").textContent = state.predict.unit;
-    drawTrend();
-    if (!$("#detailsText").hidden) loadDetails();
+  /* ---- charts view ---- */
+  async function renderCharts() {
+    const s = state.stp; if (!s) return;
+    $("#chartsTitle").textContent = s.name + " — marker trends";
+    $("#chartsSub").textContent = (state.pillar === "ncd" ? "NCD & Lifestyle · illustrative" : "Viral & Pathogen") + " · forecast band marked Predicted";
+    const ms = s.markers.filter((m) => (m.pillar || "viral") === state.pillar);
+    // dispose old charts
+    state.chartEls.forEach((c) => { try { c.dispose(); } catch (e) {} });
+    state.chartEls = [];
+    const grid = $("#chartsGrid"); grid.innerHTML = "";
+    // fetch predicts in parallel
+    const data = await Promise.all(ms.map((m) => api(`/predict/${s.id}/${m.id}?range=${state.range}&horizon=12`).then((d) => ({ m, d })).catch(() => null)));
+    data.filter(Boolean).forEach(({ m, d }) => {
+      const card = document.createElement("div");
+      card.className = "chcard"; card.id = "ch-" + m.id;
+      card.innerHTML = `<div class="chcard__head"><span class="chcard__name">${esc(m.name)}</span><span class="chcard__unit">${esc(d.unit)}</span></div>
+        <div class="chcard__chart" id="cc-${m.id}"></div>
+        <div class="chcard__note" id="cn-${m.id}"></div>
+        <button class="btn btn--sm" data-det="${m.id}" type="button" style="margin-top:8px">View Chart Details</button>
+        <div class="chcard__details" id="cd-${m.id}" hidden></div>`;
+      grid.appendChild(card);
+      const chart = echarts.init(card.querySelector(".chcard__chart"), null, { renderer: "svg" });
+      state.chartEls.push(chart); state.charts[m.id] = d;
+      drawMarkerChart(chart, d, state.horizon, $("#cn-" + m.id));
+      card.querySelector("[data-det]").addEventListener("click", async (e) => {
+        const box = $("#cd-" + m.id);
+        if (box.hidden) { box.hidden = false; e.target.textContent = "Hide Chart Details"; box.textContent = "…"; try { box.textContent = (await api(`/chart-details/${s.id}/${m.id}`)).text; } catch { box.textContent = "Details unavailable."; } }
+        else { box.hidden = true; e.target.textContent = "View Chart Details"; }
+      });
+    });
   }
 
-  function drawTrend() {
-    const d = state.predict; if (!d) return;
-    if (!state.chart) state.chart = echarts.init($("#trendChart"), null, { renderer: "svg" });
-    const color = d.color || "#0E6BA8", N = state.horizon;
+  function redrawCharts() {
+    // horizon change → redraw each chart from its cached predict (no refetch)
+    state.chartEls.forEach((chart) => {
+      const id = chart.getDom().id.replace("cc-", "");
+      const d = state.charts[id];
+      if (d) drawMarkerChart(chart, d, state.horizon, $("#cn-" + id));
+    });
+  }
+
+  function drawMarkerChart(chart, d, N, noteEl) {
+    const color = d.color || "#0E6BA8";
     const hV = d.history.values, hL = d.history.labels, H = hV.length;
     const fV = d.forecast.values.slice(0, N), fL = d.forecast.labels.slice(0, N);
     const fLo = d.forecast.lower.slice(0, N), fHi = d.forecast.upper.slice(0, N);
@@ -146,76 +178,65 @@
     const fcLine = Array(Math.max(0, H - 1)).fill(null).concat(H ? [hV[H - 1]] : [], fV);
     const lowBase = Array(Math.max(0, H - 1)).fill(null).concat(H ? [hV[H - 1]] : [], fLo);
     const band = Array(Math.max(0, H - 1)).fill(null).concat(H ? [0] : [], fHi.map((v, i) => v - fLo[i]));
-    state.chart.setOption({
-      grid: { left: 36, right: 12, top: 14, bottom: 24 },
-      tooltip: { trigger: "axis", backgroundColor: "#0E1B2E", borderWidth: 0, textStyle: { color: "#fff", fontSize: 12 } },
-      xAxis: { type: "category", data: x, boundaryGap: false, axisTick: { show: false }, axisLine: { lineStyle: { color: "#E5EBF1" } }, axisLabel: { color: "#6B7C92", fontSize: 10, hideOverlap: true } },
-      yAxis: { type: "value", min: 0, scale: false, splitLine: { lineStyle: { color: "#EEF2F7" } }, axisLabel: { color: "#6B7C92", fontSize: 10 } },
+    chart.setOption({
+      grid: { left: 34, right: 10, top: 10, bottom: 22 },
+      tooltip: { trigger: "axis", backgroundColor: "#0E1B2E", borderWidth: 0, textStyle: { color: "#fff", fontSize: 11 } },
+      xAxis: { type: "category", data: x, boundaryGap: false, axisTick: { show: false }, axisLine: { lineStyle: { color: "#E5EBF1" } }, axisLabel: { color: "#6B7C92", fontSize: 9, hideOverlap: true } },
+      yAxis: { type: "value", min: 0, splitLine: { lineStyle: { color: "#EEF2F7" } }, axisLabel: { color: "#6B7C92", fontSize: 9 } },
       series: [
         { type: "line", data: lowBase, stack: "b", lineStyle: { opacity: 0 }, symbol: "none", silent: true, areaStyle: { color: "transparent" } },
         { type: "line", data: band, stack: "b", lineStyle: { opacity: 0 }, symbol: "none", silent: true, areaStyle: { color, opacity: 0.13 } },
         { name: d.name, type: "line", data: histLine, symbol: "none", lineStyle: { color, width: 2 }, areaStyle: { color, opacity: 0.06 },
-          markLine: H ? { silent: true, symbol: "none", label: { formatter: "now", color: "#6B7C92", fontSize: 10 }, lineStyle: { color: "#9AA8BC", type: "dashed" }, data: [{ xAxis: hL[H - 1] }] } : undefined },
+          markLine: H ? { silent: true, symbol: "none", label: { formatter: "now", color: "#6B7C92", fontSize: 9 }, lineStyle: { color: "#9AA8BC", type: "dashed" }, data: [{ xAxis: hL[H - 1] }] } : undefined },
         { name: "Predicted", type: "line", data: fcLine, symbol: "none", lineStyle: { color, width: 2, type: "dashed" } },
       ],
     }, true);
-    $("#predNote").innerHTML = N > 0
-      ? `<span class='tag'>PREDICTED</span> Next ${N} week(s) · ${esc(d.note || "")}`
-      : "<span class='muted'>Drag the slider right to show the forecast.</span>";
+    if (noteEl) noteEl.innerHTML = N > 0 ? `<span class="tag">PREDICTED</span> next ${N} wk` : `<span class="muted">slide right to forecast</span>`;
+  }
+
+  /* ---- views + controls ---- */
+  function showView(v) {
+    state.view = v;
+    $("#viewMap").classList.toggle("active", v === "map");
+    $("#viewCharts").classList.toggle("active", v === "charts");
+    $("#paneMap").hidden = v !== "map";
+    $("#paneCharts").hidden = v !== "charts";
+    if (v === "map" && state.map) setTimeout(() => state.map.invalidateSize(), 50);
+    if (v === "charts") renderCharts();
   }
 
   function wireControls() {
-    $("#rangeChips").querySelectorAll("button").forEach((b) =>
-      b.addEventListener("click", () => {
-        state.range = b.dataset.r;
-        $("#rangeChips").querySelectorAll("button").forEach((x) => x.classList.toggle("active", x === b));
-        renderTrend();
-      }));
+    $("#viewMap").addEventListener("click", () => showView("map"));
+    $("#viewCharts").addEventListener("click", () => showView("charts"));
+    $("#backAll").addEventListener("click", fitAll);
     $("#pillarTabs").querySelectorAll("button").forEach((b) =>
       b.addEventListener("click", () => {
         state.pillar = b.dataset.pillar;
         $("#pillarTabs").querySelectorAll("button").forEach((x) => x.classList.toggle("active", x === b));
-        renderMarkerLists();
+        renderMarkerCards();
+        if (state.view === "charts") renderCharts();
       }));
-    $("#horizon").addEventListener("input", (e) => { state.horizon = +e.target.value; drawTrend(); });
-    $("#detailsBtn").addEventListener("click", toggleDetails);
-    $("#csvBtn").addEventListener("click", downloadCSV);
-    window.addEventListener("resize", () => state.chart && state.chart.resize());
+    $("#rangeChips").querySelectorAll("button").forEach((b) =>
+      b.addEventListener("click", () => {
+        state.range = b.dataset.r;
+        $("#rangeChips").querySelectorAll("button").forEach((x) => x.classList.toggle("active", x === b));
+        if (state.view === "charts") renderCharts();
+      }));
+    $("#horizon").addEventListener("input", (e) => { state.horizon = +e.target.value; redrawCharts(); });
+    window.addEventListener("resize", () => { state.map && state.map.invalidateSize(); state.chartEls.forEach((c) => c.resize()); });
   }
 
-  async function toggleDetails() {
-    const box = $("#detailsText");
-    if (box.hidden) { box.hidden = false; $("#detailsBtn").textContent = "Hide Chart Details"; await loadDetails(); }
-    else { box.hidden = true; $("#detailsBtn").textContent = "View Chart Details"; }
-  }
-  async function loadDetails() {
-    const box = $("#detailsText"); box.textContent = "…";
-    try { const d = await api(`/chart-details/${state.stp.id}/${state.marker}`); box.textContent = d.text; }
-    catch (e) { box.textContent = "Details unavailable."; }
-  }
-
-  function downloadCSV() {
-    const d = state.predict; if (!d) return;
-    const rows = [["week", "value", "type"]];
-    d.history.labels.forEach((l, i) => rows.push([l, d.history.values[i], "actual"]));
-    d.forecast.labels.slice(0, state.horizon).forEach((l, i) => rows.push([l, d.forecast.values[i], "predicted"]));
-    const csv = "# JalDrishti · " + d.name + " · " + state.stp.name + " (illustrative sample data)\n" +
-      rows.map((r) => r.join(",")).join("\n");
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    a.download = `jaldrishti_${state.stp.id}_${state.marker}.csv`; a.click();
-  }
-
-  /* ----------------------------------------------------------- utils ----- */
+  /* ---- utils ---- */
+  function level2sig(lvl) { return lvl === "red" ? "alert" : lvl === "orange" || lvl === "yellow" ? "watch" : "baseline"; }
   function spark(data, color) {
-    if (!data || !data.length) return "<svg class='mk__spark'></svg>";
-    const w = 70, h = 22, min = Math.min(...data), max = Math.max(...data), sp = max - min || 1, st = w / (data.length - 1);
-    const dd = data.map((v, i) => `${i ? "L" : "M"}${(i * st).toFixed(1)} ${(h - 2 - ((v - min) / sp) * (h - 4)).toFixed(1)}`).join(" ");
-    return `<svg class='mk__spark' viewBox='0 0 ${w} ${h}'><path d='${dd}' fill='none' stroke='${color}' stroke-width='1.6'/></svg>`;
+    if (!data || !data.length) return "";
+    const w = 80, h = 24, min = Math.min(...data), max = Math.max(...data), sp = max - min || 1, st = w / (data.length - 1);
+    const dd = data.map((v, i) => `${i ? "L" : "M"}${(i * st).toFixed(1)} ${(h - 3 - ((v - min) / sp) * (h - 6)).toFixed(1)}`).join(" ");
+    return `<svg width="${w}" height="${h}"><path d="${dd}" fill="none" stroke="${color || "#0E6BA8"}" stroke-width="1.6"/></svg>`;
   }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
-  window.jalDrishti = { openStp };
+  window.jalDrishti = { selectStp, showView };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();
