@@ -7,27 +7,59 @@
   const SLABEL = { baseline: "Low", watch: "Watch", alert: "High", none: "—" };
   const SCOL = { baseline: "#2E9E5B", watch: "#E0A100", alert: "#D7263D", none: "#C7D0DA" };
   const MASK_EMOJI = { green: "🙂", yellow: "😷", orange: "😷", red: "😷" };
-  const api = (p) => fetch("/api/jd" + p).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); });
+  const api = (p) => {
+    const sep = p.includes("?") ? "&" : "?";
+    return fetch("/api/jd" + p + sep + "region=" + state.region).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); });
+  };
 
   const state = {
+    region: "chandigarh",
     meta: null, stps: [], stp: null, pillar: "viral", range: "180", horizon: 8,
     view: "map", map: null, layers: {}, preventive: null, charts: {}, chartEls: [],
   };
 
   async function init() {
     try {
-      const [meta, stpData, preventive] = await Promise.all([api("/meta"), api("/stps"), api("/preventive")]);
-      state.meta = meta; state.stps = stpData.stps; state.preventive = preventive;
-      $("#freshness").textContent = "ICMR: " + (meta.masking.source_week || "—");
-      renderMaskCard(meta.masking);
-      renderMap();
       wireControls();
-      // default: highest-signal STP
-      const order = { alert: 3, watch: 2, baseline: 1, none: 0 };
-      const def = state.stps.slice().sort((a, b) => (order[b.signal] || 0) - (order[a.signal] || 0) || b.top_value - a.top_value)[0];
-      await selectStp(def.id, false);
+      await loadRegion(state.region);
       $("#loading").classList.add("hide");
     } catch (e) { $("#loading").textContent = "Could not load data (" + e + ")"; console.error(e); }
+  }
+
+  /* load (or switch to) a region: Chandigarh STPs or Kerala districts */
+  async function loadRegion(region) {
+    $("#loading").classList.remove("hide"); $("#loading").textContent = "Loading " + region + " data…";
+    state.region = region;
+    // tear down region-scoped state
+    state.stp = null; state.layers = {};
+    if (state.map) { try { state.map.remove(); } catch (e) {} state.map = null; }
+    state.chartEls.forEach((c) => { try { c.dispose(); } catch (e) {} }); state.chartEls = []; state.charts = {};
+    $("#stpInfo").hidden = true; $("#markerCards").innerHTML = ""; $("#cardPrevent").innerHTML = ""; $("#cardMasking").innerHTML = "";
+
+    const [meta, stpData, preventive] = await Promise.all([api("/meta"), api("/stps"), api("/preventive")]);
+    state.meta = meta; state.stps = stpData.stps; state.preventive = preventive;
+
+    document.querySelectorAll("#regionSwitch button").forEach((b) => b.classList.toggle("active", b.dataset.region === region));
+    $("#ovTitle").textContent = meta.title || meta.location;
+    $("#freshness").textContent = "ICMR: " + (meta.masking.source_week || "—");
+    renderMaskCard(meta.masking);
+    updateLegend(meta);
+    await renderMap();
+
+    const order = { alert: 3, watch: 2, baseline: 1, none: 0 };
+    const def = state.stps.slice().sort((a, b) => (order[b.signal] || 0) - (order[a.signal] || 0) || (b.top_value || 0) - (a.top_value || 0))[0];
+    if (def) await selectStp(def.id, false);
+    showView(state.view);
+    $("#loading").classList.add("hide");
+  }
+
+  /* legend text depends on the region's map mode */
+  function updateLegend(meta) {
+    const el = document.querySelector(".map__legend .masknote");
+    if (!el) return;
+    el.textContent = meta.map_mode === "districts"
+      ? "Blocks = Kerala districts · colour = masking level (illustrative outbreak + real national ICMR) · click a district to drill in"
+      : "Blocks = STP catchment regions (estimated, nearest-STP) · colour = masking level · grey lines = Chandigarh sectors · click a block to drill in";
   }
 
   /* ---- national masking card ---- */
@@ -42,10 +74,50 @@
 
   /* ---- map (animated STP catchment circles) ---- */
   async function renderMap() {
-    const map = L.map("map", { zoomControl: true, scrollWheelZoom: true, minZoom: 11, maxZoom: 15, zoomSnap: 0.25 }).setView(state.meta.map_center, state.meta.map_zoom);
+    const mode = state.meta.map_mode;
+    const z = mode === "districts" ? { minZoom: 6, maxZoom: 11 } : { minZoom: 11, maxZoom: 15 };
+    const map = L.map("map", { zoomControl: true, scrollWheelZoom: true, zoomSnap: 0.25, ...z }).setView(state.meta.map_center, state.meta.map_zoom);
     L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { attribution: "© OpenStreetMap, © CARTO", subdomains: "abcd", maxZoom: 19 }).addTo(map);
     state.map = map;
+    if (mode === "districts") return renderDistrictMap(map);
+    return renderVoronoiMap(map);
+  }
 
+  /* Kerala: real district polygons coloured by (illustrative) masking level */
+  async function renderDistrictMap(map) {
+    let gj = null;
+    try { gj = await fetch(state.meta.districts_asset).then((r) => r.json()); } catch (e) { console.warn("districts load failed", e); }
+    const byGeo = {}; state.stps.forEach((s) => { byGeo[s.geo || s.name] = s; });
+
+    const layer = L.geoJSON(gj, {
+      style: (f) => { const s = byGeo[f.properties.name]; const col = (s && s.masking && s.masking.color) || "#C7D0DA"; return { color: "#ffffff", weight: 1.2, fillColor: col, fillOpacity: 0.5, lineJoin: "round" }; },
+      onEachFeature: (f, lyr) => {
+        const s = byGeo[f.properties.name]; if (!s) return;
+        const tip = `<b>${esc(s.name)}</b> · ${(s.masking ? s.masking.label : SLABEL[s.signal])}<br/>~${Number(s.population).toLocaleString("en-IN")} people (est.)`;
+        lyr.bindTooltip(tip, { sticky: true }).on("click", () => selectStp(s.id));
+        state.layers[s.id] = { poly: lyr, color: (s.masking && s.masking.color) };
+      },
+    }).addTo(map);
+
+    // district centre pins (pulse on elevated)
+    state.stps.forEach((s) => {
+      const col = (s.masking && s.masking.color) || SCOL[s.signal];
+      const lvl = (s.masking && s.masking.level) || "green";
+      const pulseCls = (lvl === "orange" || lvl === "red") ? " stp-pulse stp-pulse--" + lvl : "";
+      const dot = L.marker([s.lat, s.lng], {
+        icon: L.divIcon({ className: "stp-pinwrap", html: `<div class="stp-pin${pulseCls}" style="background:${col};color:${col}"></div>`, iconSize: [14, 14], iconAnchor: [7, 7] }),
+        zIndexOffset: 1000,
+      }).addTo(map);
+      dot.bindTooltip(`<b>${esc(s.name)}</b> · ${(s.masking ? s.masking.label : SLABEL[s.signal])}`, { direction: "top" }).on("click", () => selectStp(s.id));
+      (state.layers[s.id] = state.layers[s.id] || {}).dot = dot;
+    });
+
+    const b = layer.getBounds && layer.getBounds();
+    setTimeout(() => { if (b && b.isValid()) { map.fitBounds(b.pad(0.04)); map.setMaxBounds(b.pad(0.4)); } map.invalidateSize(); }, 180);
+  }
+
+  /* Chandigarh: nearest-STP Voronoi blocks clipped to the city + sector grid */
+  async function renderVoronoiMap(map) {
     // real Chandigarh administrative boundary (OSM) — clip blocks to the city shape
     let boundary = null; // Polygon coords [[ring]] in [lng,lat]
     try {
@@ -123,7 +195,8 @@
   /* ---- select an STP ---- */
   async function selectStp(id, fly = true) {
     const meta = state.stps.find((x) => x.id === id);
-    if (fly && state.map && meta) state.map.flyTo([meta.lat, meta.lng], 13, { duration: 0.6 });
+    const flyZoom = state.meta && state.meta.map_mode === "districts" ? 8.5 : 13;
+    if (fly && state.map && meta) state.map.flyTo([meta.lat, meta.lng], flyZoom, { duration: 0.6 });
     const s = await api("/stp/" + id);
     state.stp = s;
     $("#ovTitle").textContent = s.name;
@@ -139,11 +212,15 @@
   function renderStpInfo(s) {
     const m = s.masking || {};
     const box = $("#stpInfo"); box.hidden = false;
+    const isDistrict = state.meta.map_mode === "districts";
+    const cell2 = isDistrict
+      ? `<div><div class="l">District</div><div class="v">${esc(s.area || s.name)}</div></div>`
+      : `<div><div class="l">Catchment</div><div class="v">~${s.catchment_km} km <span class="est">(est.)</span></div></div>`;
     box.innerHTML = `
       <h3>${esc(s.name)} <span class="pill pill--${level2sig(m.level)}"><span class="dot"></span>${esc(m.label || "—")}</span></h3>
       <div class="grid">
         <div><div class="l">Population</div><div class="v">${Number(s.population).toLocaleString("en-IN")} <span class="est">(est.)</span></div></div>
-        <div><div class="l">Catchment</div><div class="v">~${s.catchment_km} km <span class="est">(est.)</span></div></div>
+        ${cell2}
         <div><div class="l">Latitude</div><div class="v">${s.lat.toFixed(4)}</div></div>
         <div><div class="l">Longitude</div><div class="v">${s.lng.toFixed(4)}</div></div>
       </div>
@@ -186,9 +263,12 @@
   function renderMaskingDetails() {
     const s = state.stp; if (!s) return;
     const m = s.masking || {};
+    const formula = state.meta.map_mode === "districts"
+      ? `This district's level is an <b>illustrative IDSP-style outbreak signal</b>, annotated with <b>real national ICMR</b> positivity. Demo only — local wastewater/lab feeds pending.`
+      : `This STP's masking value is a <b>concatenation of wastewater testing + ICMR</b>. Illustrative for now — wastewater values are sample data; ICMR positivity is real.`;
     $("#cardMasking").innerHTML = `
       <h3>🧮 Masking details <span class="pill pill--${level2sig(m.level)}" style="margin-left:auto"><span class="dot"></span>${esc(m.label || m.level)}</span></h3>
-      <div class="formula">This STP's masking value is a <b>concatenation of wastewater testing + ICMR</b>. Illustrative for now — wastewater values are sample data; ICMR positivity is real.</div>
+      <div class="formula">${formula}</div>
       <div class="sub">Inputs used</div>
       ${(m.drivers || []).map((d) => `<div class="mrow"><span class="l">${esc(d.label)}</span><span class="v">${esc(d.value)}</span></div>`).join("")}
       <div class="mrow"><span class="l">Composite level</span><span class="v">${esc(m.level)}${m.score != null ? " · score " + m.score : ""}</span></div>
@@ -276,6 +356,8 @@
   }
 
   function wireControls() {
+    document.querySelectorAll("#regionSwitch button").forEach((b) =>
+      b.addEventListener("click", () => { if (b.dataset.region !== state.region) loadRegion(b.dataset.region).catch((e) => console.error(e)); }));
     $("#viewMap").addEventListener("click", () => showView("map"));
     $("#viewCharts").addEventListener("click", () => showView("charts"));
     $("#backAll").addEventListener("click", fitAll);

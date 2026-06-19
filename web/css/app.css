@@ -231,6 +231,9 @@ html[lang="hi"] body{font-family:"Noto Sans Devanagari",var(--font)}
 .chcard__details{margin-top:8px;font-size:12px;color:var(--ink);background:var(--primary-tint);border-radius:6px;padding:8px;line-height:1.5}
 /* map STP pulse marker (animation) */
 .stp-dot{border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.regionsw{display:flex;gap:4px;background:var(--surface,#eef2f7);border:1px solid var(--line,#e1e8f0);border-radius:9px;padding:3px;margin-bottom:12px}
+.regionsw button{flex:1;border:0;background:transparent;border-radius:6px;padding:6px 8px;font:600 12px/1 inherit;color:var(--muted,#6b7c92);cursor:pointer}
+.regionsw button.active{background:var(--primary,#0E6BA8);color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.18)}
 .stp-pinwrap{cursor:pointer}
 .stp-pin{width:16px;height:16px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35);transition:transform .15s}
 .stp-pin:hover{transform:scale(1.18)}

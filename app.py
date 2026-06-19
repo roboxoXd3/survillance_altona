@@ -22,6 +22,17 @@ from fastapi.staticfiles import StaticFiles
 
 import predict
 import wastewater as ww
+import kerala as kl
+
+# region registry — each module exposes the same interface (STPS, MARKERS,
+# series_for, stp_signal, stp_marker_summaries, stp_list, META, …).
+REGION_MODULES = {"chandigarh": ww, "kerala": kl}
+REGIONS = [{"id": "chandigarh", "title": "Chandigarh"}, {"id": "kerala", "title": "Kerala"}]
+
+
+def _mod(region: str):
+    return REGION_MODULES.get(region, ww)
+
 
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
@@ -130,14 +141,31 @@ def _masking_from_icmr() -> Dict[str, Any]:
     }
 
 
-# ── Per-STP masking (simplified composite from data we have) ──────────────────
-def _stp_masking(stp_id: str) -> Dict[str, Any]:
-    """Per-STP traffic-light masking: blends this STP's wastewater signal with the
-    national ICMR positivity. Other composite domains (hospital PCR, clinical, …)
-    are PENDING feeds. Phase 2 wires the full weighted composite."""
+# ── Per-site masking (simplified composite from data we have) ─────────────────
+def _stp_masking(mod, stp_id: str) -> Dict[str, Any]:
+    """Per-site traffic-light masking. For Chandigarh STPs: blend the wastewater
+    signal with national ICMR (other composite domains PENDING). For Kerala
+    districts (modules that expose `site_level`): the illustrative district
+    outbreak level, annotated with national ICMR as context. Phase 2 wires the
+    full weighted composite / real local feeds."""
     nat = _masking_from_icmr()
     ratio = nat.get("ratio", 0) or 0
-    sig = ww.stp_signal(stp_id)  # baseline | watch | alert
+    sig = mod.stp_signal(stp_id)  # baseline | watch | alert
+
+    if hasattr(mod, "site_level"):  # district-level region (Kerala)
+        level = mod.site_level(stp_id)
+        score = getattr(mod, "LEVEL_SCORE", {}).get(level)
+        return {
+            "level": level, **MASK_LEVELS[level], "score": score,
+            "drivers": [
+                {"label": "District outbreak signal (IDSP-style, illustrative)", "value": sig},
+                {"label": "ICMR national positivity", "value": f"{ratio}× baseline"},
+            ],
+            "pending": ["District wastewater (STP) feed", "Hospital PCR", "Lab-confirmed line lists"],
+            "note": "Illustrative district outbreak signal, annotated with real national ICMR. "
+                    "Local wastewater/lab feeds pending.",
+        }
+
     vscore = {"baseline": 0.3, "watch": 1.6, "alert": 2.6}.get(sig, 0.3)   # 0–3
     nscore = 0.5 if ratio < 1.1 else 1.5 if ratio < 1.5 else 2.5            # 0–3
     score = round(0.65 * vscore + 0.35 * nscore, 2)
@@ -167,84 +195,99 @@ async def _no_cache(request, call_next):
 
 
 @app.get("/api/jd/meta")
-def meta():
+def meta(region: str = "chandigarh"):
+    mod = _mod(region)
+    M = mod.META
     return {
-        "program": "JalDrishti", "location": "Chandigarh, India",
-        "illustrative": ww.ILLUSTRATIVE,
-        "map_center": [30.7333, 76.7794], "map_zoom": 12,
-        "stp_count": len(ww.STPS),
-        "pillars": ww.PILLARS,
+        "program": "JalDrishti", "region": region, "regions": REGIONS,
+        "title": M["title"], "location": M["location"], "site_label": M.get("site_label", "STP"),
+        "illustrative": mod.ILLUSTRATIVE,
+        "map_center": M["map_center"], "map_zoom": M["map_zoom"], "map_mode": M["map_mode"],
+        "boundary_asset": M.get("boundary_asset"), "sectors_asset": M.get("sectors_asset"),
+        "districts_asset": M.get("districts_asset"),
+        "stp_count": len(mod.STPS),
+        "pillars": mod.PILLARS,
         "markers": [{"id": m["id"], "name": m["name"], "color": m["color"],
-                     "pillar": m["pillar"], "unit": m["unit"]} for m in ww.MARKERS],
-        "unit": ww.VIRAL_UNIT, "thresholds": ww.VIRAL_THRESHOLDS, "ranges": list(RANGE_WEEKS.keys()),
+                     "pillar": m["pillar"], "unit": m["unit"]} for m in mod.MARKERS],
+        "unit": mod.VIRAL_UNIT, "thresholds": mod.VIRAL_THRESHOLDS, "ranges": list(RANGE_WEEKS.keys()),
         "signal_colors": SIGNAL_COLORS,
-        "week_labels": ww.week_labels(),
+        "week_labels": mod.week_labels(),
         "masking": _masking_from_icmr(),
-        "data_note": "Wastewater values are illustrative WastewaterSCAN-style sample data placed on "
-                     "Chandigarh STPs. Masking is derived from real ICMR influenza data.",
+        "data_note": M.get("data_note", ""),
         "icmr_updated": _icmr().get("last_updated"),
     }
 
 
 @app.get("/api/jd/stps")
-def stps():
-    rows = ww.stp_list()
+def stps(region: str = "chandigarh"):
+    mod = _mod(region)
+    rows = mod.stp_list()
     for r in rows:
-        r["masking"] = _stp_masking(r["id"])
-    return {"stps": rows, "thresholds": ww.VIRAL_THRESHOLDS, "mask_levels": MASK_LEVELS}
+        r["masking"] = _stp_masking(mod, r["id"])
+    return {"stps": rows, "thresholds": mod.VIRAL_THRESHOLDS, "mask_levels": MASK_LEVELS}
 
 
 @app.get("/api/jd/stp/{stp_id}")
-def stp(stp_id: str):
-    s = next((x for x in ww.STPS if x["id"] == stp_id), None)
+def stp(stp_id: str, region: str = "chandigarh"):
+    mod = _mod(region)
+    s = next((x for x in mod.STPS if x["id"] == stp_id), None)
     if not s:
         return {"error": "not found"}
+    catchment = mod.catchment_km(s["population"]) if hasattr(mod, "catchment_km") and region == "chandigarh" else s.get("catchment_km")
     return {
-        **{k: s[k] for k in ("id", "name", "area", "lat", "lng", "population")},
-        "signal": ww.stp_signal(stp_id),
-        "masking": _stp_masking(stp_id),
-        "catchment_km": ww.catchment_km(s["population"]),
+        "id": s["id"], "name": s["name"], "area": s.get("area") or (s["name"] + " district"),
+        "lat": s["lat"], "lng": s["lng"], "population": s["population"],
+        "signal": mod.stp_signal(stp_id),
+        "masking": _stp_masking(mod, stp_id),
+        "catchment_km": catchment,
         "population_estimated": True,
-        "markers": ww.stp_marker_summaries(stp_id),
-        "unit": ww.VIRAL_UNIT,
+        "level": s.get("level"), "geo": s.get("geo"),
+        "markers": mod.stp_marker_summaries(stp_id),
+        "unit": mod.VIRAL_UNIT,
     }
 
 
 @app.get("/api/jd/series/{stp_id}/{marker_id}")
-def series(stp_id: str, marker_id: str, range: str = "180"):
-    vals = ww.series_for(stp_id, marker_id)
-    labels = ww.week_labels()
+def series(stp_id: str, marker_id: str, range: str = "180", region: str = "chandigarh"):
+    mod = _mod(region)
+    vals = mod.series_for(stp_id, marker_id)
+    labels = mod.week_labels()
     n = RANGE_WEEKS.get(range, 26)
-    m = ww.marker(marker_id) or {}
+    m = mod.marker(marker_id) or {}
     return {"stp": stp_id, "marker": marker_id, "name": m.get("name"), "color": m.get("color"),
             "pillar": m.get("pillar"), "illustrative": m.get("pillar") == "ncd",
-            "unit": m.get("unit", ww.VIRAL_UNIT), "labels": labels[-n:], "values": vals[-n:]}
+            "unit": m.get("unit", mod.VIRAL_UNIT), "labels": labels[-n:], "values": vals[-n:]}
 
 
 @app.get("/api/jd/predict/{stp_id}/{marker_id}")
-def predict_series(stp_id: str, marker_id: str, range: str = "180", horizon: int = 8):
-    vals = ww.series_for(stp_id, marker_id)
-    labels = ww.week_labels()
+def predict_series(stp_id: str, marker_id: str, range: str = "180", horizon: int = 8, region: str = "chandigarh"):
+    mod = _mod(region)
+    vals = mod.series_for(stp_id, marker_id)
+    labels = mod.week_labels()
     n = RANGE_WEEKS.get(range, 26)
-    m = ww.marker(marker_id) or {}
+    m = mod.marker(marker_id) or {}
     fc = predict.forecast(vals, labels, horizon=horizon)
     fc["history"] = {"labels": labels[-n:], "values": [round(float(v), 1) for v in vals[-n:]]}
     fc["name"] = m.get("name")
     fc["color"] = m.get("color")
-    fc["unit"] = m.get("unit", ww.VIRAL_UNIT)
+    fc["unit"] = m.get("unit", mod.VIRAL_UNIT)
     fc["pillar"] = m.get("pillar")
-    if m.get("pillar") == "ncd":
+    if region == "kerala" or m.get("pillar") == "ncd":
         fc["illustrative"] = True
+    if m.get("pillar") == "ncd":
         fc["note"] = (fc.get("note", "") + " — illustrative NCD sample data (no mass-spec feed yet).").strip()
     return fc
 
 
 @app.get("/api/jd/chart-details/{stp_id}/{marker_id}")
-def chart_details(stp_id: str, marker_id: str):
-    vals = ww.series_for(stp_id, marker_id)
-    m = ww.marker(marker_id) or {}
+def chart_details(stp_id: str, marker_id: str, region: str = "chandigarh"):
+    mod = _mod(region)
+    vals = mod.series_for(stp_id, marker_id)
+    m = mod.marker(marker_id) or {}
     text = predict.chart_details(m.get("name", marker_id), vals)
-    if m.get("pillar") == "ncd":
+    if region == "kerala":
+        text += " (Illustrative district outbreak demo.)"
+    elif m.get("pillar") == "ncd":
         text += " These NCD figures are illustrative sample data."
     return {"text": text}
 

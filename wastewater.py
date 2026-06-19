@@ -60,6 +60,17 @@ PILLARS = [{"id": "viral", "label": "Viral & Pathogen"}, {"id": "ncd", "label": 
 # per-STP intensity (viral only) so the map shows a realistic mix of baseline/watch/alert
 INTENSITY = {"3brd": 0.86, "diggian": 0.98, "raipur": 0.7, "dhanas": 1.3, "maloya": 0.82}
 
+# region/map config (consumed by app.meta). map_mode "voronoi" = nearest-STP blocks
+# clipped to the city boundary + sector grid.
+META = {
+    "title": "Chandigarh", "location": "Chandigarh, India", "site_label": "STP",
+    "map_center": [30.7333, 76.7794], "map_zoom": 12, "map_mode": "voronoi",
+    "boundary_asset": "assets/chandigarh-boundary.geojson",
+    "sectors_asset": "assets/chandigarh-sectors.geojson",
+    "data_note": "Wastewater values are illustrative WastewaterSCAN-style sample data placed on "
+                 "Chandigarh STPs. Masking is derived from real ICMR influenza data.",
+}
+
 
 def marker(mid: str) -> Optional[Dict[str, Any]]:
     return next((m for m in MARKERS if m["id"] == mid), None)
