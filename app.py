@@ -157,6 +157,15 @@ def _stp_masking(stp_id: str) -> Dict[str, Any]:
 app = FastAPI(title="JalDrishti", version="3.0.0")
 
 
+@app.middleware("http")
+async def _no_cache(request, call_next):
+    """Force browsers to revalidate so a deploy is always picked up (no stale UI).
+    ETag still yields 304s, so unchanged assets aren't re-downloaded."""
+    resp = await call_next(request)
+    resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+    return resp
+
+
 @app.get("/api/jd/meta")
 def meta():
     return {
