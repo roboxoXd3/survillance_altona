@@ -21,13 +21,24 @@
   async function init() {
     try {
       wireControls();
-      await loadRegion(state.region);
+      window.addEventListener("popstate", () => { const r = regionFromUrl(); if (r !== state.region) loadRegion(r, false).catch((e) => console.error(e)); });
+      await loadRegion(regionFromUrl(), false);
       $("#loading").classList.add("hide");
     } catch (e) { $("#loading").textContent = "Could not load data (" + e + ")"; console.error(e); }
   }
 
-  /* load (or switch to) a region: Chandigarh STPs or Kerala districts */
-  async function loadRegion(region) {
+  /* region from the URL: /kerala or /chandigarh path, or ?region=… query */
+  function regionFromUrl() {
+    const path = location.pathname.replace(/\/+$/, "").toLowerCase();
+    if (path.endsWith("/kerala")) return "kerala";
+    if (path.endsWith("/chandigarh")) return "chandigarh";
+    return new URLSearchParams(location.search).get("region") === "kerala" ? "kerala" : "chandigarh";
+  }
+
+  /* load (or switch to) a region: Chandigarh STPs or Kerala districts.
+     pushUrl=true updates the address bar so the link is shareable. */
+  async function loadRegion(region, pushUrl = true) {
+    if (pushUrl) { const u = region === "chandigarh" ? "/" : "/" + region; if (location.pathname !== u) history.pushState({ region }, "", u); }
     $("#loading").classList.remove("hide"); $("#loading").textContent = "Loading " + region + " data…";
     state.region = region;
     // tear down region-scoped state
@@ -233,11 +244,20 @@
     $("#ncdNote").hidden = state.pillar !== "ncd";
     const ms = s.markers.filter((m) => (m.pillar || "viral") === state.pillar);
     const wrap = $("#markerCards"); wrap.innerHTML = "";
+    let lastCat = null;
     ms.forEach((m) => {
+      const cat = m.category || "Other";
+      if (state.pillar === "viral" && cat !== lastCat) {
+        lastCat = cat;
+        const h = document.createElement("div"); h.className = "cat-head"; h.textContent = cat;
+        wrap.appendChild(h);
+      }
+      const tag = m.panel ? `<span class="panel-tag">${esc(m.panel)}</span>` : "";
+      const prio = m.priority ? `<span class="prio-tag">PRIORITY</span>` : "";
       const c = document.createElement("div");
-      c.className = "mkcard"; c.dataset.id = m.id;
+      c.className = "mkcard" + (m.priority ? " mkcard--priority" : ""); c.dataset.id = m.id;
       c.innerHTML = `
-        <div class="mkcard__top"><span class="mkcard__name">${esc(m.name)}</span>
+        <div class="mkcard__top"><span class="mkcard__name">${tag}${esc(m.name)}${prio}</span>
           <span class="pill pill--${m.status}"><span class="dot"></span>${SLABEL[m.status]}</span></div>
         <div class="mkcard__row"><span class="mkcard__val">${m.current} <small>${esc(m.unit)}</small></span>${spark(m.spark, m.color)}</div>`;
       c.addEventListener("click", () => { showView("charts"); setTimeout(() => { const el = document.getElementById("ch-" + m.id); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }); }, 60); });
@@ -289,10 +309,17 @@
     const grid = $("#chartsGrid"); grid.innerHTML = "";
     // fetch predicts in parallel
     const data = await Promise.all(ms.map((m) => api(`/predict/${s.id}/${m.id}?range=${state.range}&horizon=12`).then((d) => ({ m, d })).catch(() => null)));
+    let lastCat = null;
     data.filter(Boolean).forEach(({ m, d }) => {
+      const cat = m.category || "Other";
+      if (state.pillar === "viral" && cat !== lastCat) {
+        lastCat = cat;
+        const h = document.createElement("div"); h.className = "cat-head cat-head--charts"; h.textContent = cat;
+        grid.appendChild(h);
+      }
       const card = document.createElement("div");
-      card.className = "chcard"; card.id = "ch-" + m.id;
-      card.innerHTML = `<div class="chcard__head"><span class="chcard__name">${esc(m.name)}</span><span class="chcard__unit">${esc(d.unit)}</span></div>
+      card.className = "chcard" + (m.priority ? " chcard--priority" : ""); card.id = "ch-" + m.id;
+      card.innerHTML = `<div class="chcard__head"><span class="chcard__name">${m.panel ? `<span class="panel-tag">${esc(m.panel)}</span>` : ""}${esc(m.name)}${m.priority ? `<span class="prio-tag">PRIORITY</span>` : ""}</span><span class="chcard__unit">${esc(d.unit)}</span></div>
         <div class="chcard__chart" id="cc-${m.id}"></div>
         <div class="chcard__note" id="cn-${m.id}"></div>
         <button class="btn btn--sm" data-det="${m.id}" type="button" style="margin-top:8px">View Chart Details</button>

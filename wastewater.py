@@ -20,12 +20,15 @@ WEEKS = 26
 ILLUSTRATIVE = True
 
 # 5 Chandigarh STP sites (approx. coordinates — dummy placement for the demo).
+# `signal` is the explicit map signal per STP (baseline|watch|alert) so the map's
+# masking levels stay stable as the monitored pathogen panel grows. The full panel
+# below is illustrative *monitoring* detail and does not recolour the map.
 STPS: List[Dict[str, Any]] = [
-    {"id": "3brd", "name": "3BRD STP", "area": "Industrial Area / Ph-1", "lat": 30.7050, "lng": 76.8060, "population": 250000},
-    {"id": "diggian", "name": "Diggian STP", "area": "Dhanas / Diggian", "lat": 30.7625, "lng": 76.7600, "population": 300000},
-    {"id": "raipur", "name": "Raipur Kalan STP", "area": "Raipur Kalan", "lat": 30.7450, "lng": 76.8600, "population": 120000},
-    {"id": "dhanas", "name": "Dhanas STP", "area": "Dhanas", "lat": 30.7600, "lng": 76.7450, "population": 90000},
-    {"id": "maloya", "name": "Maloya STP", "area": "Maloya", "lat": 30.7000, "lng": 76.7300, "population": 70000},
+    {"id": "3brd", "name": "3BRD STP", "area": "Industrial Area / Ph-1", "lat": 30.7050, "lng": 76.8060, "population": 250000, "signal": "watch"},
+    {"id": "diggian", "name": "Diggian STP", "area": "Dhanas / Diggian", "lat": 30.7625, "lng": 76.7600, "population": 300000, "signal": "watch"},
+    {"id": "raipur", "name": "Raipur Kalan STP", "area": "Raipur Kalan", "lat": 30.7450, "lng": 76.8600, "population": 120000, "signal": "baseline"},
+    {"id": "dhanas", "name": "Dhanas STP", "area": "Dhanas", "lat": 30.7600, "lng": 76.7450, "population": 90000, "signal": "alert"},
+    {"id": "maloya", "name": "Maloya STP", "area": "Maloya", "lat": 30.7000, "lng": 76.7300, "population": 70000, "signal": "baseline"},
 ]
 
 VIRAL_UNIT = "relative concentration (0–100, PMMoV-normalized)"
@@ -34,12 +37,34 @@ VIRAL_THRESHOLDS = {"watch": 50, "alert": 75}
 # ── Markers ──────────────────────────────────────────────────────────────────
 # Viral (unchanged 0–100 index). ncd markers carry real units + their own ranges.
 MARKERS: List[Dict[str, Any]] = [
-    # —— Pillar 1 · viral (drives the map) ——
-    {"id": "sars2", "name": "SARS-CoV-2", "pillar": "viral", "color": "#0E6BA8", "unit": VIRAL_UNIT, "shape": "falling"},
-    {"id": "fluA", "name": "Influenza A", "pillar": "viral", "color": "#D7263D", "unit": VIRAL_UNIT, "shape": "seasonal"},
-    {"id": "rsv", "name": "RSV", "pillar": "viral", "color": "#1B9C6B", "unit": VIRAL_UNIT, "shape": "seasonal2"},
-    {"id": "noro", "name": "Norovirus", "pillar": "viral", "color": "#7A5AF8", "unit": VIRAL_UNIT, "shape": "spike"},
-    {"id": "hepA", "name": "Hepatitis A", "pillar": "viral", "color": "#E0A100", "unit": VIRAL_UNIT, "shape": "rising"},
+    # —— Pillar 1 · viral & pathogen panel ——
+    # Full multi-pathogen monitoring panel (illustrative). `panel` = the lab's
+    # RS/AS/FS code (kept verbatim, not expanded); `category` groups for the UI.
+    # —— Arboviral (vector-borne) ——
+    {"id": "denv",   "name": "Dengue (DENV)",        "panel": "RS", "category": "Arboviral",            "pillar": "viral", "color": "#D7263D", "unit": VIRAL_UNIT, "shape": "spike"},
+    {"id": "chkv",   "name": "Chikungunya (CHKV)",   "panel": "RS", "category": "Arboviral",            "pillar": "viral", "color": "#F97316", "unit": VIRAL_UNIT, "shape": "rising"},
+    {"id": "zikv",   "name": "Zika (ZIKV)",          "panel": "RS", "category": "Arboviral",            "pillar": "viral", "color": "#B91C1C", "unit": VIRAL_UNIT, "shape": "rising"},
+    # —— Hepatitis ——
+    {"id": "hepa",   "name": "Hepatitis A",          "panel": "AS", "category": "Hepatitis",            "pillar": "viral", "color": "#E0A100", "unit": VIRAL_UNIT, "shape": "seasonal"},
+    {"id": "hepe",   "name": "Hepatitis E",          "panel": "AS", "category": "Hepatitis",            "pillar": "viral", "color": "#CA8A04", "unit": VIRAL_UNIT, "shape": "rising"},
+    {"id": "hcv",    "name": "Hepatitis C (HCV)",    "panel": "AS", "category": "Hepatitis",            "pillar": "viral", "color": "#A16207", "unit": VIRAL_UNIT, "shape": "falling"},
+    {"id": "hbv",    "name": "Hepatitis B (HBV)",    "panel": "AS", "category": "Hepatitis",            "pillar": "viral", "color": "#854D0E", "unit": VIRAL_UNIT, "shape": "falling"},
+    # —— Enteric & diarrhoeal ——
+    {"id": "chol",   "name": "Vibrio cholerae O1+O139", "panel": "FS", "category": "Enteric & diarrhoeal", "pillar": "viral", "color": "#0891B2", "unit": VIRAL_UNIT, "shape": "spike"},
+    {"id": "noro",   "name": "Norovirus / Rotavirus", "panel": "FS", "category": "Enteric & diarrhoeal", "pillar": "viral", "color": "#7A5AF8", "unit": VIRAL_UNIT, "shape": "spike"},
+    {"id": "salyc",  "name": "Salmonella / Yersinia / Campylobacter", "panel": "FS", "category": "Enteric & diarrhoeal", "pillar": "viral", "color": "#0D9488", "unit": VIRAL_UNIT, "shape": "seasonal2"},
+    {"id": "ecoli",  "name": "E. coli P1",           "panel": "FS", "category": "Enteric & diarrhoeal", "pillar": "viral", "color": "#2563EB", "unit": VIRAL_UNIT, "shape": "seasonal2"},
+    {"id": "cdiff",  "name": "C. difficile",         "panel": "RS", "category": "Enteric & diarrhoeal", "pillar": "viral", "color": "#155E75", "unit": VIRAL_UNIT, "shape": "rising"},
+    {"id": "crypto", "name": "Cryptosporidium / Giardia", "panel": "FS", "category": "Enteric & diarrhoeal", "pillar": "viral", "color": "#1E40AF", "unit": VIRAL_UNIT, "shape": "seasonal2"},
+    # —— Respiratory ——
+    {"id": "sars2",  "name": "SARS-CoV-2 (incl. subvariants)", "panel": "FS", "category": "Respiratory", "pillar": "viral", "color": "#0E6BA8", "unit": VIRAL_UNIT, "shape": "falling"},
+    {"id": "flurv",  "name": "Influenza A/B + RSV",  "panel": "FS", "category": "Respiratory",          "pillar": "viral", "color": "#16A34A", "unit": VIRAL_UNIT, "shape": "seasonal"},
+    {"id": "hmpv",   "name": "HMPV + PIV + Adenovirus", "panel": "FS", "category": "Respiratory",       "pillar": "viral", "color": "#6D28D9", "unit": VIRAL_UNIT, "shape": "seasonal2"},
+    # —— Emerging & priority ——
+    {"id": "nipah",  "name": "Nipah Virus (NiV)",    "panel": "RS", "category": "Emerging & priority",  "pillar": "viral", "color": "#9D0208", "unit": VIRAL_UNIT, "shape": "spike", "priority": True},
+    {"id": "mpox",   "name": "Mpox (Monkeypox)",     "panel": "FS", "category": "Emerging & priority",  "pillar": "viral", "color": "#DB2777", "unit": VIRAL_UNIT, "shape": "rising"},
+    {"id": "cauris", "name": "Candida auris",        "panel": "AS", "category": "Emerging & priority",  "pillar": "viral", "color": "#9333EA", "unit": VIRAL_UNIT, "shape": "rising"},
+    {"id": "parvo",  "name": "Parvovirus B19",       "panel": "AS", "category": "Emerging & priority",  "pillar": "viral", "color": "#C026D3", "unit": VIRAL_UNIT, "shape": "seasonal"},
     # —— Pillar 2 · NCD & lifestyle (illustrative, real units, does NOT affect map) ——
     {"id": "etg", "name": "Alcohol (EtG/EtS)", "pillar": "ncd", "color": "#1B9C6B", "unit": "mg/day/1000 ppl",
      "base": 42, "amp": 14, "trend": 0.6, "phase": 0.0, "dp": 0, "watch": 45, "alert": 62},
@@ -147,6 +172,11 @@ def series_for(stp_id: str, marker_id: str) -> List[float]:
         site = 0.9 + 0.05 * (idx - 2)  # mild per-site variation, doesn't flip thresholds
         r = _rng(_seed("ncd", stp_id, marker_id))
         return [_ncd_value(m, i / (WEEKS - 1), r, site) for i in range(WEEKS)]
+    # Nipah is a priority-MONITORED pathogen in Chandigarh — present in the panel
+    # but not detected here (low flat signal). The real Nipah concern is in Kerala.
+    if marker_id == "nipah":
+        r = _rng(_seed("nipah-chd", stp_id))
+        return [round(max(0.0, 12 + (r() - 0.5) * 10), 1) for _ in range(WEEKS)]
     # viral — unchanged
     mult = INTENSITY.get(stp_id, 0.9)
     r = _rng(_seed(stp_id, marker_id))
@@ -176,6 +206,7 @@ def stp_marker_summaries(stp_id: str, pillar: Optional[str] = None) -> List[Dict
         cur = s[-1] if s else 0.0
         out.append({
             "id": m["id"], "name": m["name"], "pillar": m["pillar"], "color": m["color"],
+            "panel": m.get("panel"), "category": m.get("category", "Other"), "priority": m.get("priority", False),
             "unit": m["unit"], "current": cur, "status": status_for(cur, m), "spark": s[-12:],
             "illustrative": m["pillar"] == "ncd",
         })
@@ -183,16 +214,10 @@ def stp_marker_summaries(stp_id: str, pillar: Optional[str] = None) -> List[Dict
 
 
 def stp_signal(stp_id: str) -> str:
-    """Map signal = VIRAL markers only (NCD never recolours the map)."""
-    order = {"baseline": 0, "watch": 1, "alert": 2}
-    worst = "baseline"
-    for m in MARKERS:
-        if m["pillar"] != "viral":
-            continue
-        st = status_for(series_for(stp_id, m["id"])[-1], m)
-        if order[st] > order[worst]:
-            worst = st
-    return worst
+    """Map signal per STP — explicit (stored on the STP) so the map's masking stays
+    stable as the monitored pathogen panel grows. NCD never recolours the map."""
+    s = next((x for x in STPS if x["id"] == stp_id), None)
+    return (s or {}).get("signal", "baseline")
 
 
 def stp_list() -> List[Dict[str, Any]]:

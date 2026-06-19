@@ -58,6 +58,12 @@ LEVEL_SIGNAL = {"green": "baseline", "yellow": "watch", "orange": "alert", "red"
 LEVEL_MULT = {"green": 0.55, "yellow": 0.9, "orange": 1.25, "red": 1.55}
 LEVEL_SCORE = {"green": 0.6, "yellow": 1.4, "orange": 2.1, "red": 2.7}
 
+# the pathogens driving the (illustrative) Kerala outbreak — these surge to a
+# current-week peak scaled by the district level, so an affected district visibly
+# shows active detections. Nipah leads, with a monsoon arboviral/enteric cluster.
+OUTBREAK_MARKERS = {"nipah", "denv", "chkv", "chol"}
+LEVEL_OUTBREAK_PEAK = {"green": 20, "yellow": 52, "orange": 76, "red": 92}
+
 
 def _by_id(site_id: str) -> Optional[Dict[str, Any]]:
     return next((d for d in DISTRICTS if d["id"] == site_id), None)
@@ -76,6 +82,16 @@ def series_for(site_id: str, marker_id: str) -> List[float]:
     if m["pillar"] == "ncd":
         r = _rng(_seed("kl-ncd", site_id, marker_id))
         return [_ncd_value(m, i / (WEEKS - 1), r, 0.95) for i in range(WEEKS)]
+    # outbreak pathogens: rise to a current-week peak scaled by the district level
+    if marker_id in OUTBREAK_MARKERS:
+        peak = LEVEL_OUTBREAK_PEAK.get(d["level"], 20) if d else 20
+        r = _rng(_seed("kl-ob", site_id, marker_id))
+        out = []
+        for i in range(WEEKS):
+            t = i / (WEEKS - 1)
+            base = 16 + (peak - 16) * (t ** 1.7)
+            out.append(round(max(0.0, min(100.0, base + (r() - 0.5) * 8)), 1))
+        return out
     mult = LEVEL_MULT.get(d["level"], 0.9) if d else 0.9
     r = _rng(_seed("kl", site_id, marker_id))
     out = []
@@ -100,6 +116,7 @@ def stp_marker_summaries(site_id: str, pillar: Optional[str] = None) -> List[Dic
         cur = s[-1] if s else 0.0
         out.append({
             "id": m["id"], "name": m["name"], "pillar": m["pillar"], "color": m["color"],
+            "panel": m.get("panel"), "category": m.get("category", "Other"), "priority": m.get("priority", False),
             "unit": m["unit"], "current": cur, "status": status_for(cur, m), "spark": s[-12:],
             "illustrative": True,  # Kerala layer is wholly illustrative
         })

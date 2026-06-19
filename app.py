@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 import predict
@@ -207,8 +208,9 @@ def meta(region: str = "chandigarh"):
         "districts_asset": M.get("districts_asset"),
         "stp_count": len(mod.STPS),
         "pillars": mod.PILLARS,
-        "markers": [{"id": m["id"], "name": m["name"], "color": m["color"],
-                     "pillar": m["pillar"], "unit": m["unit"]} for m in mod.MARKERS],
+        "markers": [{"id": m["id"], "name": m["name"], "color": m["color"], "pillar": m["pillar"],
+                     "panel": m.get("panel"), "category": m.get("category", "Other"),
+                     "priority": m.get("priority", False), "unit": m["unit"]} for m in mod.MARKERS],
         "unit": mod.VIRAL_UNIT, "thresholds": mod.VIRAL_THRESHOLDS, "ranges": list(RANGE_WEEKS.keys()),
         "signal_colors": SIGNAL_COLORS,
         "week_labels": mod.week_labels(),
@@ -308,5 +310,13 @@ def icmr():
     return {**_icmr_recent(), "masking": _masking_from_icmr(), "unit": "lab-confirmed positivity (count)"}
 
 
-# SPA last so /api/* wins.
+# clean per-region deep-link paths (e.g. /kerala) — serve the SPA shell; the
+# frontend reads the region from the path. Query form ?region=… also works.
+@app.get("/chandigarh")
+@app.get("/kerala")
+def region_page():
+    return FileResponse(str(WEB_DIR / "index.html"))
+
+
+# SPA last so /api/* and the routes above win.
 app.mount("/", StaticFiles(directory=str(WEB_DIR), html=True), name="web")
