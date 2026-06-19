@@ -61,7 +61,7 @@
       <section class="pane pane--map" id="paneMap">
         <div id="map" class="map"></div>
         <div class="map__legend">
-          <span class="masknote">Circles = STP catchment areas (estimated) · colour = masking level · click to drill in</span>
+          <span class="masknote">Blocks = STP catchment regions (estimated, nearest-STP) · colour = masking level · click a block to drill in</span>
           <span class="keys">
             <i style="background:#2E9E5B"></i>Green <i style="background:#E0A100"></i>Yellow
             <i style="background:#F97316"></i>Orange <i style="background:#D7263D"></i>Red
@@ -100,6 +100,7 @@
   <div class="loading" id="loading">Loading surveillance data…</div>
 
   <script src="assets/leaflet/leaflet.js"></script>
+  <script src="assets/d3-delaunay.min.js"></script>
   <script src="assets/echarts.min.js"></script>
   <script src="js/app.js"></script>
 </body>

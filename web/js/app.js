@@ -45,24 +45,55 @@
     const map = L.map("map", { zoomControl: true, scrollWheelZoom: true, minZoom: 11, maxZoom: 14 }).setView(state.meta.map_center, state.meta.map_zoom);
     L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { attribution: "© OpenStreetMap, © CARTO", subdomains: "abcd", maxZoom: 19 }).addTo(map);
     state.map = map;
+
+    // build nearest-STP catchment regions (Voronoi blocks) clipped to a padded bbox
+    const pts = state.stps.map((s) => [s.lng, s.lat]); // [x=lng, y=lat]
+    const lngs = pts.map((p) => p[0]), lats = pts.map((p) => p[1]), pad = 0.045;
+    const bbox = [Math.min(...lngs) - pad, Math.min(...lats) - pad, Math.max(...lngs) + pad, Math.max(...lats) + pad];
+    const bounds = L.latLngBounds([[bbox[1], bbox[0]], [bbox[3], bbox[2]]]);
+    let voronoi = null;
+    try { voronoi = (window.d3 && d3.Delaunay) ? d3.Delaunay.from(pts).voronoi(bbox) : null; }
+    catch (e) { console.warn("voronoi failed", e); }
+
     state.stps.forEach((s, i) => {
       const col = (s.masking && s.masking.color) || SCOL[s.signal];
       const lvl = (s.masking && s.masking.level) || "green";
-      // staggered appearance for a subtle animation
-      setTimeout(() => {
-        const circle = L.circle([s.lat, s.lng], { radius: (s.catchment_km || 2) * 1000, color: col, weight: 1.5, fillColor: col, fillOpacity: 0.16 }).addTo(map);
-        const pulseCls = (lvl === "orange" || lvl === "red") ? " stp-pulse stp-pulse--" + lvl : "";
-        const dot = L.marker([s.lat, s.lng], {
-          icon: L.divIcon({ className: "", html: `<div class="stp-dot${pulseCls}" style="width:16px;height:16px;background:${col};color:${col}"></div>`, iconSize: [16, 16], iconAnchor: [8, 8] }),
-        }).addTo(map);
-        const tip = `<b>${esc(s.name)}</b> · ${(s.masking ? s.masking.label : SLABEL[s.signal])}<br/>~${Number(s.population).toLocaleString("en-IN")} people (est.) · ${s.catchment_km} km catchment`;
-        circle.bindTooltip(tip, { direction: "top" }); dot.bindTooltip(tip, { direction: "top" });
-        circle.on("click", () => selectStp(s.id)); dot.on("click", () => selectStp(s.id));
-        state.layers[s.id] = { circle, dot };
-      }, i * 110);
+      const tip = `<b>${esc(s.name)}</b> · ${(s.masking ? s.masking.label : SLABEL[s.signal])}<br/>~${Number(s.population).toLocaleString("en-IN")} people (est.) · ${s.catchment_km} km catchment`;
+
+      // region block (coloured by masking)
+      let poly = null;
+      const cell = voronoi ? voronoi.cellPolygon(i) : null;
+      if (cell) {
+        poly = L.polygon(cell.map(([lng, lat]) => [lat, lng]), { color: "#fff", weight: 2, fillColor: col, fillOpacity: 0.30, className: "stp-region" }).addTo(map);
+        poly.bindTooltip(tip, { sticky: true });
+        poly.on("click", () => selectStp(s.id));
+      } else {
+        // fallback: catchment circle if Voronoi is unavailable
+        poly = L.circle([s.lat, s.lng], { radius: (s.catchment_km || 2) * 1000, color: col, weight: 1.5, fillColor: col, fillOpacity: 0.16 }).addTo(map);
+        poly.bindTooltip(tip, { sticky: true }).on("click", () => selectStp(s.id));
+      }
+
+      // STP centre dot (pulse when elevated)
+      const pulseCls = (lvl === "orange" || lvl === "red") ? " stp-pulse stp-pulse--" + lvl : "";
+      const dot = L.marker([s.lat, s.lng], {
+        icon: L.divIcon({ className: "", html: `<div class="stp-dot${pulseCls}" style="width:15px;height:15px;background:${col};color:${col}"></div>`, iconSize: [15, 15], iconAnchor: [7.5, 7.5] }),
+      }).addTo(map);
+      dot.bindTooltip(tip, { direction: "top" }).on("click", () => selectStp(s.id));
+
+      state.layers[s.id] = { poly, dot, color: col };
     });
-    // fit to all STPs
-    setTimeout(() => { const b = L.latLngBounds(state.stps.map((s) => [s.lat, s.lng])); map.fitBounds(b.pad(0.5)); map.setMaxBounds(b.pad(2.5)); map.invalidateSize(); }, state.stps.length * 110 + 150);
+
+    setTimeout(() => { map.fitBounds(bounds.pad(0.02)); map.setMaxBounds(bounds.pad(0.4)); map.invalidateSize(); }, 180);
+  }
+
+  /* highlight the selected region block */
+  function highlightStp(id) {
+    Object.entries(state.layers).forEach(([k, l]) => {
+      if (l.poly && l.poly.setStyle) {
+        l.poly.setStyle({ fillOpacity: k === id ? 0.52 : 0.22, weight: k === id ? 3 : 2 });
+        if (k === id && l.poly.bringToFront) l.poly.bringToFront();
+      }
+    });
   }
 
   function fitAll() { if (state.map) state.map.flyToBounds(L.latLngBounds(state.stps.map((s) => [s.lat, s.lng])).pad(0.5)); }
@@ -75,6 +106,7 @@
     state.stp = s;
     $("#ovTitle").textContent = s.name;
     $("#backAll").hidden = false;
+    highlightStp(id);
     renderStpInfo(s);
     renderMarkerCards();
     renderPrevent();
