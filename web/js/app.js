@@ -96,6 +96,12 @@
       state.layers[s.id] = { poly, dot, color: col };
     });
 
+    // faint Chandigarh sector grid for context (non-interactive, clicks pass through to regions)
+    try {
+      const sectors = await fetch("assets/chandigarh-sectors.geojson").then((r) => r.json());
+      L.geoJSON(sectors, { style: { color: "#334155", weight: 1, opacity: 0.6, fill: false }, interactive: false }).addTo(map);
+    } catch (e) { console.warn("sectors load failed", e); }
+
     // subtle city outline on top
     if (boundary) L.polygon(boundary.map((ring) => ring.map(toLL)), { color: "#0E6BA8", weight: 1.5, opacity: 0.5, fill: false, interactive: false, dashArray: "1 0" }).addTo(map);
 
