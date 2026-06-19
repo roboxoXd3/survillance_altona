@@ -231,6 +231,10 @@ html[lang="hi"] body{font-family:"Noto Sans Devanagari",var(--font)}
 .chcard__details{margin-top:8px;font-size:12px;color:var(--ink);background:var(--primary-tint);border-radius:6px;padding:8px;line-height:1.5}
 /* map STP pulse marker (animation) */
 .stp-dot{border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.stp-pinwrap{cursor:pointer}
+.stp-pin{width:16px;height:16px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35);transition:transform .15s}
+.stp-pin:hover{transform:scale(1.18)}
+.stp-region{transition:fill-opacity .25s}
 .stp-pulse{position:relative}
 .stp-pulse::after{content:"";position:absolute;inset:0;border-radius:50%;animation:stpPulse 2.2s ease-out infinite}
 .stp-pulse--orange::after{box-shadow:0 0 0 0 rgba(249,115,22,.5)}

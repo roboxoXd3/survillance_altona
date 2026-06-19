@@ -41,49 +41,65 @@
   }
 
   /* ---- map (animated STP catchment circles) ---- */
-  function renderMap() {
-    const map = L.map("map", { zoomControl: true, scrollWheelZoom: true, minZoom: 11, maxZoom: 14 }).setView(state.meta.map_center, state.meta.map_zoom);
+  async function renderMap() {
+    const map = L.map("map", { zoomControl: true, scrollWheelZoom: true, minZoom: 11, maxZoom: 15, zoomSnap: 0.25 }).setView(state.meta.map_center, state.meta.map_zoom);
     L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { attribution: "© OpenStreetMap, © CARTO", subdomains: "abcd", maxZoom: 19 }).addTo(map);
     state.map = map;
 
-    // build nearest-STP catchment regions (Voronoi blocks) clipped to a padded bbox
-    const pts = state.stps.map((s) => [s.lng, s.lat]); // [x=lng, y=lat]
-    const lngs = pts.map((p) => p[0]), lats = pts.map((p) => p[1]), pad = 0.045;
+    // real Chandigarh administrative boundary (OSM) — clip blocks to the city shape
+    let boundary = null; // Polygon coords [[ring]] in [lng,lat]
+    try {
+      const gj = await fetch("assets/chandigarh-boundary.geojson").then((r) => r.json());
+      boundary = gj.geometry.type === "MultiPolygon" ? gj.geometry.coordinates[0] : gj.geometry.coordinates;
+    } catch (e) { console.warn("boundary load failed", e); }
+
+    // nearest-STP regions (Voronoi) clipped to a padded bbox, then to the city boundary
+    const pts = state.stps.map((s) => [s.lng, s.lat]);
+    const lngs = pts.map((p) => p[0]), lats = pts.map((p) => p[1]), pad = 0.04;
     const bbox = [Math.min(...lngs) - pad, Math.min(...lats) - pad, Math.max(...lngs) + pad, Math.max(...lats) + pad];
-    const bounds = L.latLngBounds([[bbox[1], bbox[0]], [bbox[3], bbox[2]]]);
     let voronoi = null;
-    try { voronoi = (window.d3 && d3.Delaunay) ? d3.Delaunay.from(pts).voronoi(bbox) : null; }
-    catch (e) { console.warn("voronoi failed", e); }
+    try { voronoi = (window.d3 && d3.Delaunay) ? d3.Delaunay.from(pts).voronoi(bbox) : null; } catch (e) { console.warn("voronoi failed", e); }
+
+    const toLL = ([lng, lat]) => [lat, lng];
+    let fitBounds = boundary ? L.latLngBounds(boundary[0].map(toLL)) : L.latLngBounds([[bbox[1], bbox[0]], [bbox[3], bbox[2]]]);
 
     state.stps.forEach((s, i) => {
       const col = (s.masking && s.masking.color) || SCOL[s.signal];
       const lvl = (s.masking && s.masking.level) || "green";
       const tip = `<b>${esc(s.name)}</b> · ${(s.masking ? s.masking.label : SLABEL[s.signal])}<br/>~${Number(s.population).toLocaleString("en-IN")} people (est.) · ${s.catchment_km} km catchment`;
 
-      // region block (coloured by masking)
-      let poly = null;
-      const cell = voronoi ? voronoi.cellPolygon(i) : null;
-      if (cell) {
-        poly = L.polygon(cell.map(([lng, lat]) => [lat, lng]), { color: "#fff", weight: 2, fillColor: col, fillOpacity: 0.30, className: "stp-region" }).addTo(map);
-        poly.bindTooltip(tip, { sticky: true });
-        poly.on("click", () => selectStp(s.id));
-      } else {
-        // fallback: catchment circle if Voronoi is unavailable
-        poly = L.circle([s.lat, s.lng], { radius: (s.catchment_km || 2) * 1000, color: col, weight: 1.5, fillColor: col, fillOpacity: 0.16 }).addTo(map);
-        poly.bindTooltip(tip, { sticky: true }).on("click", () => selectStp(s.id));
+      // region block coloured by masking, clipped to the city boundary
+      let poly = null, latlngs = null;
+      const cell = voronoi ? voronoi.cellPolygon(i) : null; // closed ring [[lng,lat],...]
+      if (cell && boundary && window.polygonClipping) {
+        try {
+          const clipped = polygonClipping.intersection([cell], boundary); // MultiPolygon
+          if (clipped && clipped.length) latlngs = clipped.map((pg) => pg.map((ring) => ring.map(toLL)));
+        } catch (e) { console.warn("clip failed", s.id, e); }
       }
+      if (!latlngs && cell) latlngs = cell.map(toLL); // unclipped Voronoi fallback
+      if (latlngs) {
+        poly = L.polygon(latlngs, { color: "#ffffff", weight: 1.3, fillColor: col, fillOpacity: 0.34, lineJoin: "round", className: "stp-region" }).addTo(map);
+      } else {
+        poly = L.circle([s.lat, s.lng], { radius: (s.catchment_km || 2) * 1000, color: col, weight: 1.5, fillColor: col, fillOpacity: 0.18 }).addTo(map); // last-resort
+      }
+      poly.bindTooltip(tip, { sticky: true }).on("click", () => selectStp(s.id));
 
-      // STP centre dot (pulse when elevated)
+      // polished STP marker (white ring + soft shadow; pulse when elevated)
       const pulseCls = (lvl === "orange" || lvl === "red") ? " stp-pulse stp-pulse--" + lvl : "";
       const dot = L.marker([s.lat, s.lng], {
-        icon: L.divIcon({ className: "", html: `<div class="stp-dot${pulseCls}" style="width:15px;height:15px;background:${col};color:${col}"></div>`, iconSize: [15, 15], iconAnchor: [7.5, 7.5] }),
+        icon: L.divIcon({ className: "stp-pinwrap", html: `<div class="stp-pin${pulseCls}" style="background:${col};color:${col}"></div>`, iconSize: [16, 16], iconAnchor: [8, 8] }),
+        zIndexOffset: 1000,
       }).addTo(map);
       dot.bindTooltip(tip, { direction: "top" }).on("click", () => selectStp(s.id));
 
       state.layers[s.id] = { poly, dot, color: col };
     });
 
-    setTimeout(() => { map.fitBounds(bounds.pad(0.02)); map.setMaxBounds(bounds.pad(0.4)); map.invalidateSize(); }, 180);
+    // subtle city outline on top
+    if (boundary) L.polygon(boundary.map((ring) => ring.map(toLL)), { color: "#0E6BA8", weight: 1.5, opacity: 0.5, fill: false, interactive: false, dashArray: "1 0" }).addTo(map);
+
+    setTimeout(() => { map.fitBounds(fitBounds.pad(0.04)); map.setMaxBounds(fitBounds.pad(0.5)); map.invalidateSize(); }, 180);
   }
 
   /* highlight the selected region block */
