@@ -42,7 +42,7 @@
 
   /* ---- map (animated STP catchment circles) ---- */
   function renderMap() {
-    const map = L.map("map", { zoomControl: true, scrollWheelZoom: true }).setView(state.meta.map_center, state.meta.map_zoom);
+    const map = L.map("map", { zoomControl: true, scrollWheelZoom: true, minZoom: 11, maxZoom: 14 }).setView(state.meta.map_center, state.meta.map_zoom);
     L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { attribution: "© OpenStreetMap, © CARTO", subdomains: "abcd", maxZoom: 19 }).addTo(map);
     state.map = map;
     state.stps.forEach((s, i) => {
@@ -62,7 +62,7 @@
       }, i * 110);
     });
     // fit to all STPs
-    setTimeout(() => { const b = L.latLngBounds(state.stps.map((s) => [s.lat, s.lng])); map.fitBounds(b.pad(0.5)); map.invalidateSize(); }, state.stps.length * 110 + 150);
+    setTimeout(() => { const b = L.latLngBounds(state.stps.map((s) => [s.lat, s.lng])); map.fitBounds(b.pad(0.5)); map.setMaxBounds(b.pad(2.5)); map.invalidateSize(); }, state.stps.length * 110 + 150);
   }
 
   function fitAll() { if (state.map) state.map.flyToBounds(L.latLngBounds(state.stps.map((s) => [s.lat, s.lng])).pad(0.5)); }
@@ -78,6 +78,7 @@
     renderStpInfo(s);
     renderMarkerCards();
     renderPrevent();
+    renderMaskingDetails();
     if (state.view === "charts") renderCharts();
   }
 
@@ -92,8 +93,7 @@
         <div><div class="l">Latitude</div><div class="v">${s.lat.toFixed(4)}</div></div>
         <div><div class="l">Longitude</div><div class="v">${s.lng.toFixed(4)}</div></div>
       </div>
-      <div class="pending"><b>Masking inputs:</b> ${(m.drivers || []).map((d) => esc(d.label) + " (" + esc(d.value) + ")").join(" · ")}.
-        <br/><b>Pending feeds:</b> ${(m.pending || []).join(", ")}.</div>`;
+      <div class="pending est">Masking details &amp; preventive actions below the map ↓</div>`;
   }
 
   /* ---- marker cards (wwscan-style) ---- */
@@ -114,17 +114,33 @@
     });
   }
 
-  /* ---- preventive actions ---- */
+  /* ---- bottom card 1: preventive actions ---- */
   function renderPrevent() {
     const pv = state.preventive; if (!pv || !state.stp) return;
     const lvl = (state.stp.masking && state.stp.masking.level) || "green";
     const viral = pv.viral[lvl] || pv.viral.green;
-    $("#prevent").innerHTML = `
-      <h3>🦠 Preventive actions — Viral <span class="pill pill--${level2sig(lvl)}" style="margin-left:auto"><span class="dot"></span>${lvl}</span></h3>
+    $("#cardPrevent").innerHTML = `
+      <h3>🛡️ Preventive measures <span class="pill pill--${level2sig(lvl)}" style="margin-left:auto"><span class="dot"></span>${lvl}</span></h3>
+      <div class="sub">🦠 Viral &amp; Pathogen</div>
       <ul>${viral.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
-      <h3>🧪 Preventive actions — NCD &amp; Lifestyle</h3>
+      <div class="sub">🧪 NCD &amp; Lifestyle (illustrative)</div>
       <ul>${pv.ncd.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
       <p class="note">${esc(pv.note)}</p>`;
+  }
+
+  /* ---- bottom card 2: masking details (per-STP composite) ---- */
+  function renderMaskingDetails() {
+    const s = state.stp; if (!s) return;
+    const m = s.masking || {};
+    $("#cardMasking").innerHTML = `
+      <h3>🧮 Masking details <span class="pill pill--${level2sig(m.level)}" style="margin-left:auto"><span class="dot"></span>${esc(m.label || m.level)}</span></h3>
+      <div class="formula">This STP's masking value is a <b>concatenation of wastewater testing + ICMR</b>. Illustrative for now — wastewater values are sample data; ICMR positivity is real.</div>
+      <div class="sub">Inputs used</div>
+      ${(m.drivers || []).map((d) => `<div class="mrow"><span class="l">${esc(d.label)}</span><span class="v">${esc(d.value)}</span></div>`).join("")}
+      <div class="mrow"><span class="l">Composite level</span><span class="v">${esc(m.level)}${m.score != null ? " · score " + m.score : ""}</span></div>
+      <div class="sub" style="margin-top:10px">Pending feeds (Phase 2)</div>
+      <p class="note">${(m.pending || []).join(" · ")}</p>
+      <a class="maskcard__more" href="masking.html" style="color:var(--primary);text-decoration:underline">Full national masking method →</a>`;
   }
 
   /* ---- charts view ---- */
