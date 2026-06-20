@@ -238,9 +238,7 @@ html[lang="hi"] body{font-family:"Noto Sans Devanagari",var(--font)}
 .prio-tag{display:inline-block;font:700 8px/1 inherit;letter-spacing:.05em;color:#fff;background:#9D0208;border-radius:4px;padding:2px 4px;margin-left:6px;vertical-align:middle}
 .mkcard--priority{border-color:#9D0208;box-shadow:0 0 0 1px rgba(157,2,8,.18)}
 .chcard--priority{border-color:#9D0208;box-shadow:0 0 0 1px rgba(157,2,8,.18)}
-.regionsw{display:flex;gap:4px;background:var(--surface,#eef2f7);border:1px solid var(--line,#e1e8f0);border-radius:9px;padding:3px;margin-bottom:12px}
-.regionsw button{flex:1;border:0;background:transparent;border-radius:6px;padding:6px 8px;font:600 12px/1 inherit;color:var(--muted,#6b7c92);cursor:pointer}
-.regionsw button.active{background:var(--primary,#0E6BA8);color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.regionlabel{display:inline-flex;align-items:center;gap:4px;background:var(--primary,#0E6BA8);color:#fff;border-radius:999px;padding:4px 12px;font:700 12px/1 inherit;margin-bottom:12px;letter-spacing:.01em}
 .stp-pinwrap{cursor:pointer}
 .stp-pin{width:16px;height:16px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35);transition:transform .15s}
 .stp-pin:hover{transform:scale(1.18)}

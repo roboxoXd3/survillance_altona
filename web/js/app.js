@@ -50,7 +50,8 @@
     const [meta, stpData, preventive] = await Promise.all([api("/meta"), api("/stps"), api("/preventive")]);
     state.meta = meta; state.stps = stpData.stps; state.preventive = preventive;
 
-    document.querySelectorAll("#regionSwitch button").forEach((b) => b.classList.toggle("active", b.dataset.region === region));
+    const rl = $("#regionLabel"); if (rl) rl.textContent = "📍 " + (meta.title || meta.location);
+    document.title = "JalDrishti — " + (meta.title || meta.location) + " · Wastewater Surveillance";
     $("#ovTitle").textContent = meta.title || meta.location;
     $("#freshness").textContent = "ICMR: " + (meta.masking.source_week || "—");
     renderMaskCard(meta.masking);
@@ -383,8 +384,6 @@
   }
 
   function wireControls() {
-    document.querySelectorAll("#regionSwitch button").forEach((b) =>
-      b.addEventListener("click", () => { if (b.dataset.region !== state.region) loadRegion(b.dataset.region).catch((e) => console.error(e)); }));
     $("#viewMap").addEventListener("click", () => showView("map"));
     $("#viewCharts").addEventListener("click", () => showView("charts"));
     $("#backAll").addEventListener("click", fitAll);
