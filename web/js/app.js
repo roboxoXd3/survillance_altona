@@ -69,17 +69,19 @@
   function updateLegend(meta) {
     const el = document.querySelector(".map__legend .masknote");
     if (!el) return;
-    el.textContent = meta.map_mode === "districts"
-      ? "Blocks = Kerala districts · colour = masking level (illustrative outbreak + real national ICMR) · click a district to drill in"
-      : "Blocks = STP catchment regions (estimated, nearest-STP) · colour = masking level · grey lines = Chandigarh sectors · click a block to drill in";
+    el.innerHTML = meta.map_mode === "districts"
+      ? "Blocks = Kerala districts · colour = area risk → 🏥 recommended <b>hospital</b> masking (illustrative outbreak + real national ICMR) · click a district to drill in"
+      : "Blocks = STP catchment regions (estimated, nearest-STP) · colour = area risk → 🏥 recommended <b>hospital</b> masking · grey lines = Chandigarh sectors · click a block to drill in";
   }
 
   /* ---- national masking card ---- */
   function renderMaskCard(m) {
     const t = m.traffic || { level: "green", label: m.label };
+    const lvl = (t.label || "").replace(/^Hospitals\s*[—-]\s*/i, ""); // strip prefix; header already says "Hospital"
     $("#maskcard").className = "maskcard maskcard--" + t.level;
     $("#maskcard").innerHTML =
-      `<div class="maskcard__top"><span class="ic">${MASK_EMOJI[t.level] || "🙂"}</span> National masking: ${t.label}</div>
+      `<div class="maskcard__top"><span class="ic">🏥</span> Hospital masking advisory: ${esc(lvl)}</div>
+       <p class="maskcard__scope">For hospitals &amp; healthcare facilities — not a public / region-wide mandate.</p>
        <p class="maskcard__why">${esc(m.rationale || m.note || "")}</p>
        <a class="maskcard__more" href="masking.html">How is this calculated? →</a>`;
   }
@@ -273,7 +275,7 @@
     const viral = pv.viral[lvl] || pv.viral.green;
     $("#cardPrevent").innerHTML = `
       <h3>🛡️ Preventive measures <span class="pill pill--${level2sig(lvl)}" style="margin-left:auto"><span class="dot"></span>${lvl}</span></h3>
-      <div class="sub">🦠 Viral &amp; Pathogen</div>
+      <div class="sub">🏥 Hospital masking &amp; infection control</div>
       <ul>${viral.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
       <div class="sub">🧪 NCD &amp; Lifestyle (illustrative)</div>
       <ul>${pv.ncd.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
@@ -289,6 +291,7 @@
       : `This STP's masking value is a <b>concatenation of wastewater testing + ICMR</b>. Illustrative for now — wastewater values are sample data; ICMR positivity is real.`;
     $("#cardMasking").innerHTML = `
       <h3>🧮 Masking details <span class="pill pill--${level2sig(m.level)}" style="margin-left:auto"><span class="dot"></span>${esc(m.label || m.level)}</span></h3>
+      <div class="mask-scope">🏥 Guides masking posture for <b>hospitals</b> in this area — not a public / region-wide mandate.</div>
       <div class="formula">${formula}</div>
       <div class="sub">Inputs used</div>
       ${(m.drivers || []).map((d) => `<div class="mrow"><span class="l">${esc(d.label)}</span><span class="v">${esc(d.value)}</span></div>`).join("")}

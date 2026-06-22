@@ -42,32 +42,38 @@ WEB_DIR = ROOT / "web"
 RANGE_WEEKS = {"30": 5, "60": 9, "180": 26}
 SIGNAL_COLORS = {"baseline": "#2E9E5B", "watch": "#E0A100", "alert": "#D7263D", "none": "#C7D0DA"}
 MASKING = {
-    "not_required": {"level": "not_required", "label": "Masking not required", "signal": "baseline"},
-    "suggested": {"level": "suggested", "label": "Masking suggested", "signal": "watch"},
-    "strongly_advised": {"level": "strongly_advised", "label": "Masking strongly advised", "signal": "alert"},
+    "not_required": {"level": "not_required", "label": "Hospitals — masking not required", "signal": "baseline"},
+    "suggested": {"level": "suggested", "label": "Hospitals — masking suggested", "signal": "watch"},
+    "strongly_advised": {"level": "strongly_advised", "label": "Hospitals — masking strongly advised", "signal": "alert"},
 }
-MASKING_NOTE = "Advisory only — a suggested preventive measure, not enforcement."
+# Masking guidance is scoped to HOSPITALS / healthcare facilities — it is NOT a
+# public or region-wide mandate. The map colour reflects area risk; the masking
+# posture it implies applies to hospitals in that area.
+MASKING_NOTE = "Advisory for hospitals & healthcare facilities — not a public/region-wide mandate."
 # ICMR combined-positivity ratio (current vs recent baseline) → masking level
 MASK_RATIO = {"strongly_advised": 1.5, "suggested": 1.1}
 
 # 4-level traffic light (Tarun's framework) — used for the national bar + per-STP circles
+# Labels are hospital-scoped (the masking strategy is for hospitals, not the public).
 MASK_LEVELS = {
-    "green":  {"color": "#2E9E5B", "label": "Routine — masking optional"},
-    "yellow": {"color": "#E0A100", "label": "Targeted masking"},
-    "orange": {"color": "#F97316", "label": "Broad masking advised"},
-    "red":    {"color": "#D7263D", "label": "Masking strongly advised"},
+    "green":  {"color": "#2E9E5B", "label": "Hospitals — masking optional"},
+    "yellow": {"color": "#E0A100", "label": "Hospitals — targeted masking"},
+    "orange": {"color": "#F97316", "label": "Hospitals — broad masking advised"},
+    "red":    {"color": "#D7263D", "label": "Hospitals — masking strongly advised"},
 }
 # domains not yet wired into the composite (shown as "pending feed")
 PENDING_FEEDS = ["Hospital PCR (e.g. PGI Chandigarh)", "Clinical ILI/SARI", "Public-health alerts", "Operational pressure"]
 
 # Preventive actions by masking colour (viral, adapted from the masking-policy framework)
 # and illustrative NCD outreach. Advisory only.
+# Viral actions are HOSPITAL / healthcare-facility infection-control measures
+# (the masking strategy is for hospitals, not a public mandate).
 PREVENTIVE = {
     "viral": {
-        "green":  ["Masking optional in general areas", "Symptomatic individuals mask (source control)", "Promote hand hygiene & respiratory etiquette"],
-        "yellow": ["Targeted masking in crowded / poorly-ventilated indoor settings", "Masks for staff in patient-facing roles", "Symptomatic individuals must mask; encourage testing"],
-        "orange": ["Masking advised in all indoor public spaces", "Vulnerable groups avoid crowded settings", "Improve ventilation; widen testing in affected areas"],
-        "red":    ["Masking strongly advised in all indoor settings", "N95/FFP2 for high-risk settings & aerosol-generating procedures", "Limit large indoor gatherings; isolate symptomatic cases"],
+        "green":  ["Masking optional for hospital staff & visitors", "Symptomatic patients/staff mask (source control)", "Maintain hand hygiene & respiratory etiquette in facilities"],
+        "yellow": ["Targeted masking in patient-facing & crowded hospital areas", "Masks for staff in patient-facing roles", "Screen & mask symptomatic patients/visitors at entry"],
+        "orange": ["Masking advised across all hospital indoor areas", "N95/FFP2 in high-risk wards (ICU, ED, isolation)", "Restrict/mask visitors; improve ward ventilation"],
+        "red":    ["Masking strongly advised throughout all healthcare facilities", "N95/FFP2 for all patient care & aerosol-generating procedures", "Limit visitors; cohort & isolate symptomatic patients"],
     },
     "ncd": [
         "Community awareness drives where alcohol/tobacco load is rising",
@@ -75,7 +81,7 @@ PREVENTIVE = {
         "Nutrition & diet outreach via local health workers",
         "Coordinate with the State NCD cell on lifestyle programmes",
     ],
-    "note": "Advisory only — suggested preventive measures, not enforcement. NCD actions are illustrative.",
+    "note": "Masking guidance applies to hospitals & healthcare facilities — not a public/region-wide mandate. NCD actions are illustrative.",
 }
 
 

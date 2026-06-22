@@ -239,6 +239,8 @@ html[lang="hi"] body{font-family:"Noto Sans Devanagari",var(--font)}
 .mkcard--priority{border-color:#9D0208;box-shadow:0 0 0 1px rgba(157,2,8,.18)}
 .chcard--priority{border-color:#9D0208;box-shadow:0 0 0 1px rgba(157,2,8,.18)}
 .regionlabel{display:inline-flex;align-items:center;gap:4px;background:var(--primary,#0E6BA8);color:#fff;border-radius:999px;padding:4px 12px;font:700 12px/1 inherit;margin-bottom:12px;letter-spacing:.01em}
+.maskcard__scope{font-size:11px;font-weight:600;opacity:.85;margin:2px 0 4px}
+.mask-scope{font-size:11.5px;background:#eef4f9;border:1px solid #d7e6f1;border-radius:6px;padding:6px 9px;margin:6px 0 8px;color:#22425c}
 .stp-pinwrap{cursor:pointer}
 .stp-pin{width:16px;height:16px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35);transition:transform .15s}
 .stp-pin:hover{transform:scale(1.18)}
